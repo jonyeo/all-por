@@ -1390,3 +1390,25 @@ a {
     color: #ffd700;
 }
 
+/* 마크다운 에디터 버튼 */
+.editor-btn {
+    padding: 0.4rem 0.8rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+    color: var(--text-primary);
+}
+
+.editor-btn:hover {
+    background: var(--accent-light);
+    border-color: var(--accent-primary);
+    transform: translateY(-1px);
+}
+
+.editor-btn:active {
+    transform: translateY(0);
+}
+

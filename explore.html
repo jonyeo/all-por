@@ -44,6 +44,62 @@
                     <option value="popular">인기순</option>
                     <option value="rating">평점순</option>
                 </select>
+                <button onclick="showAdvancedSearch()" class="btn btn-secondary" style="white-space:nowrap;">🔍 고급 검색</button>
+            </div>
+        </div>
+        
+        <!-- 고급 검색 모달 -->
+        <div class="modal-overlay" id="advancedSearchModal">
+            <div class="modal" style="max-width:600px;">
+                <div class="modal-header">
+                    <h2>🔍 고급 검색</h2>
+                    <button class="modal-close" onclick="closeAdvancedSearch()">✕</button>
+                </div>
+                <div style="padding:1rem 0;">
+                    <div class="form-group">
+                        <label class="form-label">독서 상태</label>
+                        <select id="filterStatus" class="form-select">
+                            <option value="">전체</option>
+                            <option value="not_started">아직 안 읽음</option>
+                            <option value="reading">읽는 중</option>
+                            <option value="completed">읽음 완료</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">평점 범위</label>
+                        <div style="display:flex;gap:0.5rem;align-items:center;">
+                            <select id="filterRatingMin" class="form-select" style="flex:1;">
+                                <option value="0">최소 평점</option>
+                                <option value="1">1점 이상</option>
+                                <option value="2">2점 이상</option>
+                                <option value="3">3점 이상</option>
+                                <option value="4">4점 이상</option>
+                                <option value="5">5점</option>
+                            </select>
+                            <span>~</span>
+                            <select id="filterRatingMax" class="form-select" style="flex:1;">
+                                <option value="5">최대 평점</option>
+                                <option value="1">1점 이하</option>
+                                <option value="2">2점 이하</option>
+                                <option value="3">3점 이하</option>
+                                <option value="4">4점 이하</option>
+                                <option value="5">5점</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">페이지 수 범위</label>
+                        <div style="display:flex;gap:0.5rem;align-items:center;">
+                            <input type="number" id="filterPagesMin" class="form-input" placeholder="최소" style="flex:1;">
+                            <span>~</span>
+                            <input type="number" id="filterPagesMax" class="form-input" placeholder="최대" style="flex:1;">
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:0.5rem;margin-top:1.5rem;">
+                    <button onclick="applyAdvancedSearch()" class="btn btn-primary" style="flex:1;">검색</button>
+                    <button onclick="closeAdvancedSearch()" class="btn btn-secondary" style="flex:1;">취소</button>
+                </div>
             </div>
         </div>
 

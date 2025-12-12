@@ -171,6 +171,32 @@
                 <p class="form-hint">💡 교보문고/알라딘에서 책 이미지 우클릭 → "이미지 주소 복사" 후 붙여넣기</p>
             </div>
 
+            <!-- 독서 기록 -->
+            <div class="form-group">
+                <label class="form-label">📖 독서 상태</label>
+                <select name="readingStatus" class="form-select" id="readingStatus">
+                    <option value="not_started">아직 안 읽음</option>
+                    <option value="reading">읽는 중</option>
+                    <option value="completed">읽음 완료</option>
+                </select>
+            </div>
+            
+            <div class="form-row" id="readingDatesRow" style="display:none;">
+                <div class="form-group">
+                    <label class="form-label">읽기 시작일</label>
+                    <input type="date" name="readingStartDate" class="form-input" id="readingStartDate">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">완독일</label>
+                    <input type="date" name="readingEndDate" class="form-input" id="readingEndDate">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">📄 페이지 수 (선택사항)</label>
+                <input type="number" name="pages" class="form-input" placeholder="예: 320" min="0">
+            </div>
+
             <!-- 평점 -->
             <div class="form-group">
                 <label class="form-label">내 평점</label>
@@ -187,7 +213,21 @@
             <!-- 요약 -->
             <div class="form-group">
                 <label class="form-label">📄 책 내용 정리 / 요약</label>
-                <textarea name="summary" class="form-textarea" placeholder="이 책의 핵심 내용이나 느낀점을 정리해보세요..."></textarea>
+                <div style="border:2px solid var(--border-color);border-radius:12px;overflow:hidden;">
+                    <div style="background:var(--bg-primary);padding:0.8rem;border-bottom:1px solid var(--border-color);display:flex;gap:0.5rem;flex-wrap:wrap;">
+                        <button type="button" class="editor-btn" onclick="insertMarkdown('**', '**', 'bold')" title="굵게">B</button>
+                        <button type="button" class="editor-btn" onclick="insertMarkdown('*', '*', 'italic')" title="기울임">I</button>
+                        <button type="button" class="editor-btn" onclick="insertMarkdown('~~', '~~', 'strikethrough')" title="취소선">S</button>
+                        <div style="width:1px;background:var(--border-color);margin:0 0.3rem;"></div>
+                        <button type="button" class="editor-btn" onclick="insertMarkdown('![이미지 설명](', ')', 'image')" title="이미지">🖼️</button>
+                        <button type="button" class="editor-btn" onclick="insertMarkdown('[링크 텍스트](', ')', 'link')" title="링크">🔗</button>
+                        <div style="width:1px;background:var(--border-color);margin:0 0.3rem;"></div>
+                        <button type="button" class="editor-btn" onclick="insertMarkdown('- ', '', 'list')" title="목록">•</button>
+                        <button type="button" class="editor-btn" onclick="insertMarkdown('1. ', '', 'numbered')" title="번호 목록">1.</button>
+                    </div>
+                    <textarea name="summary" id="summaryTextarea" class="form-textarea" style="border:none;min-height:200px;" placeholder="이 책의 핵심 내용이나 느낀점을 정리해보세요...&#10;&#10;마크다운 문법 사용 가능:&#10;**굵게**, *기울임*, ![이미지](URL), [링크](URL)"></textarea>
+                </div>
+                <p class="form-hint">💡 이미지 추가: 🖼️ 버튼 클릭 후 이미지 URL 입력 | 마크다운 문법 지원</p>
             </div>
 
             <!-- 목차 -->
@@ -241,6 +281,51 @@
         });
     </script>
     <script>
+        // 마크다운 에디터 함수
+        function insertMarkdown(before, after, type) {
+            const textarea = document.getElementById('summaryTextarea');
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = textarea.value;
+            const selectedText = text.substring(start, end);
+            
+            let insertText = '';
+            if (type === 'image') {
+                insertText = before + (selectedText || '이미지 URL') + after;
+            } else if (type === 'link') {
+                insertText = before + (selectedText || '링크 URL') + after;
+            } else if (type === 'list' || type === 'numbered') {
+                insertText = before + (selectedText || '항목');
+            } else {
+                insertText = before + (selectedText || '텍스트') + after;
+            }
+            
+            textarea.value = text.substring(0, start) + insertText + text.substring(end);
+            textarea.focus();
+            const newPos = start + insertText.length;
+            if (type === 'image' || type === 'link') {
+                textarea.setSelectionRange(start + before.length, start + before.length + (selectedText || '이미지 URL').length);
+            } else {
+                textarea.setSelectionRange(start + insertText.length, start + insertText.length);
+            }
+        }
+        
+        // 독서 상태 변경 시 날짜 필드 표시/숨김
+        document.getElementById('readingStatus').addEventListener('change', function() {
+            const datesRow = document.getElementById('readingDatesRow');
+            if (this.value === 'reading' || this.value === 'completed') {
+                datesRow.style.display = 'grid';
+                if (this.value === 'reading' && !document.getElementById('readingStartDate').value) {
+                    document.getElementById('readingStartDate').value = new Date().toISOString().split('T')[0];
+                }
+                if (this.value === 'completed' && !document.getElementById('readingEndDate').value) {
+                    document.getElementById('readingEndDate').value = new Date().toISOString().split('T')[0];
+                }
+            } else {
+                datesRow.style.display = 'none';
+            }
+        });
+        
         // 별점 설정
         function setRating(rating) {
             document.getElementById('ratingInput').value = rating;

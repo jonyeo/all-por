@@ -113,8 +113,28 @@
 
         <!-- 통계 탭 -->
         <div class="tab-content" id="tab-stats">
-            <div style="padding:2rem;max-width:800px;margin:0 auto;">
+            <div style="padding:2rem;max-width:1000px;margin:0 auto;">
                 <h2 class="section-title">📊 도서관 통계</h2>
+                
+                <!-- 전체 통계 카드 -->
+                <div class="form-card" style="margin-top:2rem;display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:1rem;">
+                    <div style="text-align:center;padding:1.5rem;background:var(--accent-light);border-radius:12px;">
+                        <div style="font-size:2.5rem;font-weight:700;color:var(--accent-primary);" id="totalBooksStat">0</div>
+                        <div style="color:var(--text-secondary);margin-top:0.5rem;">전체 책</div>
+                    </div>
+                    <div style="text-align:center;padding:1.5rem;background:var(--accent-light);border-radius:12px;">
+                        <div style="font-size:2.5rem;font-weight:700;color:var(--accent-primary);" id="completedBooksStat">0</div>
+                        <div style="color:var(--text-secondary);margin-top:0.5rem;">읽은 책</div>
+                    </div>
+                    <div style="text-align:center;padding:1.5rem;background:var(--accent-light);border-radius:12px;">
+                        <div style="font-size:2.5rem;font-weight:700;color:var(--accent-primary);" id="totalPagesStat">0</div>
+                        <div style="color:var(--text-secondary);margin-top:0.5rem;">총 페이지</div>
+                    </div>
+                    <div style="text-align:center;padding:1.5rem;background:var(--accent-light);border-radius:12px;">
+                        <div style="font-size:2.5rem;font-weight:700;color:var(--accent-primary);" id="avgRatingStat">0</div>
+                        <div style="color:var(--text-secondary);margin-top:0.5rem;">평균 평점</div>
+                    </div>
+                </div>
                 
                 <div class="form-card" style="margin-top:2rem;">
                     <h3>분류별 책 수</h3>
@@ -126,6 +146,13 @@
                 <div class="form-card" style="margin-top:2rem;">
                     <h3>평점 분포</h3>
                     <div id="ratingStats" style="margin-top:1.5rem;">
+                        <!-- JavaScript로 동적 생성 -->
+                    </div>
+                </div>
+                
+                <div class="form-card" style="margin-top:2rem;">
+                    <h3>독서 상태별 통계</h3>
+                    <div id="readingStatusStats" style="margin-top:1.5rem;">
                         <!-- JavaScript로 동적 생성 -->
                     </div>
                 </div>
@@ -186,6 +213,18 @@
             const stats = getStats();
             const books = getAllBooks();
             
+            // 전체 통계 업데이트
+            const completedBooks = books.filter(b => b.readingStatus === 'completed').length;
+            const totalPages = books.reduce((sum, b) => sum + (b.pages || 0), 0);
+            const avgRating = books.length > 0 
+                ? (books.reduce((sum, b) => sum + (b.rating || 0), 0) / books.length).toFixed(1)
+                : 0;
+            
+            document.getElementById('totalBooksStat').textContent = stats.totalBooks;
+            document.getElementById('completedBooksStat').textContent = completedBooks;
+            document.getElementById('totalPagesStat').textContent = totalPages.toLocaleString();
+            document.getElementById('avgRatingStat').textContent = avgRating;
+            
             // 분류별 통계
             const categoryStatsEl = document.getElementById('categoryStats');
             let categoryHtml = '';
@@ -236,6 +275,39 @@
                 `;
             }
             ratingStatsEl.innerHTML = ratingHtml;
+            
+            // 독서 상태별 통계
+            const statusStatsEl = document.getElementById('readingStatusStats');
+            const statusCounts = {
+                not_started: books.filter(b => !b.readingStatus || b.readingStatus === 'not_started').length,
+                reading: books.filter(b => b.readingStatus === 'reading').length,
+                completed: books.filter(b => b.readingStatus === 'completed').length
+            };
+            
+            let statusHtml = '';
+            const statusLabels = {
+                not_started: '📚 아직 안 읽음',
+                reading: '📖 읽는 중',
+                completed: '✅ 읽음 완료'
+            };
+            
+            Object.keys(statusCounts).forEach(status => {
+                const count = statusCounts[status];
+                const percentage = stats.totalBooks > 0 ? (count / stats.totalBooks * 100) : 0;
+                
+                statusHtml += `
+                    <div style="margin-bottom:1rem;">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:0.3rem;">
+                            <span>${statusLabels[status]}</span>
+                            <span>${count}권</span>
+                        </div>
+                        <div style="height:8px;background:var(--border-color);border-radius:4px;overflow:hidden;">
+                            <div style="height:100%;width:${percentage}%;background:var(--gradient-accent);border-radius:4px;transition:width 0.5s ease;"></div>
+                        </div>
+                    </div>
+                `;
+            });
+            statusStatsEl.innerHTML = statusHtml;
         }
 
         // QR 코드 인스턴스
@@ -249,7 +321,20 @@
         function generateLibraryQRCode() {
             const qrContainer = document.getElementById('qrCode');
             const libraryInfo = getLibraryInfo();
-            const shareUrl = window.location.origin + window.location.pathname;
+            const libraryId = getLibraryId();
+            
+            // 공유 가능한 URL 생성
+            const baseUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
+            const shareUrl = `${baseUrl}index.html?library=${libraryId}`;
+            
+            // 현재 도서관 데이터를 공유용으로 저장
+            const books = getAllBooks();
+            const sharedData = {
+                libraryInfo,
+                books,
+                createdAt: Date.now()
+            };
+            localStorage.setItem(`shared_library_${libraryId}`, JSON.stringify(sharedData));
             
             // URL 입력란 업데이트
             document.getElementById('shareUrl').value = shareUrl;

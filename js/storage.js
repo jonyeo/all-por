@@ -21,8 +21,26 @@ const STORAGE_KEYS = {
     BOOKS: 'library_books',
     LIBRARY_INFO: 'library_info',
     LIKES: 'library_likes',
-    SETTINGS: 'library_settings'
+    SETTINGS: 'library_settings',
+    LIBRARY_ID: 'library_id' // 고유 도서관 ID
 };
+
+// 도서관 ID 생성/가져오기
+function getLibraryId() {
+    let libraryId = localStorage.getItem(STORAGE_KEYS.LIBRARY_ID);
+    if (!libraryId) {
+        libraryId = 'lib_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem(STORAGE_KEYS.LIBRARY_ID, libraryId);
+    }
+    return libraryId;
+}
+
+// 공유 가능한 도서관 URL 생성
+function getShareableLibraryUrl() {
+    const libraryId = getLibraryId();
+    const baseUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
+    return `${baseUrl}index.html?library=${libraryId}`;
+}
 
 /**
  * 책 데이터 구조
@@ -38,6 +56,10 @@ const STORAGE_KEYS = {
  *   tableOfContents: string[],
  *   relatedBooks: string[] (book IDs),
  *   likes: number,
+ *   readingStatus: string ('not_started' | 'reading' | 'completed'),
+ *   readingStartDate: timestamp,
+ *   readingEndDate: timestamp,
+ *   pages: number,
  *   createdAt: timestamp,
  *   updatedAt: timestamp
  * }

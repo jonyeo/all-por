@@ -8,8 +8,48 @@
 
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
+    checkSharedLibrary();
     initPage();
 });
+
+// 공유된 도서관 확인
+function checkSharedLibrary() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const sharedLibraryId = urlParams.get('library');
+    
+    if (sharedLibraryId) {
+        // 공유된 도서관 모드
+        loadSharedLibrary(sharedLibraryId);
+    }
+}
+
+// 공유된 도서관 로드
+function loadSharedLibrary(libraryId) {
+    // 로컬 스토리지에서 공유된 도서관 데이터 찾기
+    // 실제로는 Firebase나 서버에서 가져와야 하지만, 현재는 로컬에서 시뮬레이션
+    const sharedData = localStorage.getItem(`shared_library_${libraryId}`);
+    
+    if (sharedData) {
+        const data = JSON.parse(sharedData);
+        // 공유 모드 표시
+        showSharedLibraryMode(data);
+    } else {
+        // 공유 데이터가 없으면 현재 도서관 표시
+        console.log('공유된 도서관을 찾을 수 없습니다. 현재 도서관을 표시합니다.');
+    }
+}
+
+// 공유 모드 UI 표시
+function showSharedLibraryMode(data) {
+    // 헤더에 공유 모드 표시
+    const header = document.querySelector('.main-header');
+    if (header) {
+        const sharedBadge = document.createElement('div');
+        sharedBadge.style.cssText = 'background:#e74c3c;color:white;padding:0.5rem 1rem;text-align:center;font-size:0.9rem;';
+        sharedBadge.innerHTML = `👁️ 공유된 도서관 모드 | <a href="index.html" style="color:white;text-decoration:underline;">내 도서관으로 돌아가기</a>`;
+        header.insertAdjacentElement('afterend', sharedBadge);
+    }
+}
 
 /**
  * 페이지별 초기화
@@ -739,6 +779,11 @@ function saveBook(event) {
         .map(input => input.value.trim())
         .filter(value => value !== '');
     
+    const readingStatus = formData.get('readingStatus') || 'not_started';
+    const readingStartDate = formData.get('readingStartDate') ? new Date(formData.get('readingStartDate')).getTime() : null;
+    const readingEndDate = formData.get('readingEndDate') ? new Date(formData.get('readingEndDate')).getTime() : null;
+    const pages = parseInt(formData.get('pages')) || 0;
+    
     const bookData = {
         title: formData.get('title'),
         author: formData.get('author'),
@@ -748,7 +793,11 @@ function saveBook(event) {
         rating: parseInt(formData.get('rating')) || 0,
         summary: formData.get('summary') || '',
         tableOfContents,
-        relatedBooks: []
+        relatedBooks: [],
+        readingStatus,
+        readingStartDate,
+        readingEndDate,
+        pages
     };
     
     // 유효성 검사
@@ -819,12 +868,32 @@ function renderBookDetail(book) {
     likeBtn.innerHTML = `${isLiked ? '❤️' : '🤍'} 좋아요 <span id="likeCount">${book.likes || 0}</span>`;
     if (isLiked) likeBtn.classList.add('liked');
     
-    // 요약
+    // 요약 (마크다운 렌더링)
     const summaryEl = document.getElementById('bookSummary');
     if (book.summary) {
-        summaryEl.innerHTML = `<p>${escapeHtml(book.summary).replace(/\n/g, '<br>')}</p>`;
+        summaryEl.innerHTML = `<div style="line-height:1.8;">${renderMarkdown(book.summary)}</div>`;
     } else {
         summaryEl.innerHTML = `<p style="color:var(--text-muted);">요약이 없습니다.</p>`;
+    }
+    
+    // 독서 기록 표시
+    if (book.readingStatus || book.readingStartDate || book.readingEndDate || book.pages) {
+        const readingInfo = document.createElement('div');
+        readingInfo.className = 'book-summary';
+        readingInfo.style.marginTop = '1rem';
+        readingInfo.innerHTML = `
+            <h2>📖 독서 기록</h2>
+            <div style="display:flex;gap:2rem;flex-wrap:wrap;margin-top:1rem;">
+                ${book.readingStatus ? `<div><strong>상태:</strong> ${
+                    book.readingStatus === 'completed' ? '✅ 읽음 완료' : 
+                    book.readingStatus === 'reading' ? '📖 읽는 중' : '📚 아직 안 읽음'
+                }</div>` : ''}
+                ${book.readingStartDate ? `<div><strong>시작일:</strong> ${formatDate(book.readingStartDate)}</div>` : ''}
+                ${book.readingEndDate ? `<div><strong>완독일:</strong> ${formatDate(book.readingEndDate)}</div>` : ''}
+                ${book.pages ? `<div><strong>페이지:</strong> ${book.pages}페이지</div>` : ''}
+            </div>
+        `;
+        document.querySelector('.book-detail-info').appendChild(readingInfo);
     }
     
     // 목차
@@ -1053,5 +1122,70 @@ function sortBooks(sortType) {
     const urlParams = new URLSearchParams(window.location.search);
     urlParams.set('sort', sortType);
     window.location.href = `explore.html?${urlParams.toString()}`;
+}
+
+// 고급 검색 모달
+function showAdvancedSearch() {
+    document.getElementById('advancedSearchModal').classList.add('show');
+}
+
+function closeAdvancedSearch() {
+    document.getElementById('advancedSearchModal').classList.remove('show');
+}
+
+function applyAdvancedSearch() {
+    const status = document.getElementById('filterStatus').value;
+    const ratingMin = parseInt(document.getElementById('filterRatingMin').value) || 0;
+    const ratingMax = parseInt(document.getElementById('filterRatingMax').value) || 5;
+    const pagesMin = parseInt(document.getElementById('filterPagesMin').value) || 0;
+    const pagesMax = parseInt(document.getElementById('filterPagesMax').value) || 999999;
+    
+    let books = getAllBooks();
+    
+    // 필터 적용
+    books = books.filter(book => {
+        if (status && book.readingStatus !== status) return false;
+        if (book.rating < ratingMin || book.rating > ratingMax) return false;
+        if (book.pages && (book.pages < pagesMin || book.pages > pagesMax)) return false;
+        return true;
+    });
+    
+    // 결과 표시
+    const container = document.getElementById('exploreGrid');
+    if (books.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <span class="empty-icon">📭</span>
+                <p>검색 조건에 맞는 책이 없습니다</p>
+            </div>
+        `;
+    } else {
+        container.innerHTML = books.map(book => createBookCard(book)).join('');
+    }
+    
+    closeAdvancedSearch();
+    showToast(`${books.length}권의 책을 찾았습니다!`);
+}
+
+// 마크다운 렌더링 (간단한 버전)
+function renderMarkdown(text) {
+    if (!text) return '';
+    
+    let html = escapeHtml(text);
+    
+    // 굵게
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    // 기울임
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    // 취소선
+    html = html.replace(/~~(.+?)~~/g, '<del>$1</del>');
+    // 이미지
+    html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%;border-radius:8px;margin:1rem 0;">');
+    // 링크
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:var(--accent-primary);">$1</a>');
+    // 줄바꿈
+    html = html.replace(/\n/g, '<br>');
+    
+    return html;
 }
 
