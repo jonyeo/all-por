@@ -1053,7 +1053,17 @@ function initMyLibraryPage() {
 }
 
 function updateLibraryName(input) {
-    saveLibraryInfo({ name: input.value });
+    const newName = input.value.trim();
+    if (!newName) {
+        const libraryInfo = getLibraryInfo();
+        input.value = libraryInfo.name || '나만의 도서관';
+        showToast('도서관 이름은 비워둘 수 없습니다', 'error');
+        return;
+    }
+    
+    saveLibraryInfo({ name: newName });
+    registerLibraryInRegistry(newName);
+    showToast('도서관 이름이 저장되었습니다!');
 }
 
 function renderMyBooks() {
