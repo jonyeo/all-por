@@ -22,7 +22,8 @@ const STORAGE_KEYS = {
     LIBRARY_INFO: 'library_info',
     LIKES: 'library_likes',
     SETTINGS: 'library_settings',
-    LIBRARY_ID: 'library_id' // 고유 도서관 ID
+    LIBRARY_ID: 'library_id', // 고유 도서관 ID
+    ALL_LIBRARIES: 'all_libraries_registry' // 모든 도서관 등록부 (이름으로 검색용)
 };
 
 // 도서관 ID 생성/가져오기
@@ -253,11 +254,72 @@ function getLibraryInfo() {
  * 도서관 정보 저장하기
  */
 function saveLibraryInfo(info) {
-    localStorage.setItem(STORAGE_KEYS.LIBRARY_INFO, JSON.stringify({
+    const libraryInfo = {
         ...getLibraryInfo(),
         ...info,
         updatedAt: Date.now()
-    }));
+    };
+    localStorage.setItem(STORAGE_KEYS.LIBRARY_INFO, JSON.stringify(libraryInfo));
+    
+    // 도서관 등록부에 등록 (이름으로 검색 가능하도록)
+    if (info.name) {
+        registerLibraryInRegistry(libraryInfo.name);
+    }
+}
+
+/**
+ * 도서관 등록부에 등록
+ */
+function registerLibraryInRegistry(libraryName) {
+    const libraryId = getLibraryId();
+    const registry = getAllLibrariesRegistry();
+    
+    // 현재 도서관 정보 가져오기
+    const libraryInfo = getLibraryInfo();
+    const books = getAllBooks();
+    const stats = getStats();
+    
+    registry[libraryId] = {
+        id: libraryId,
+        name: libraryName || libraryInfo.name || '나만의 도서관',
+        description: libraryInfo.description || '',
+        avatar: libraryInfo.avatar || '📚',
+        bookCount: stats.totalBooks,
+        totalLikes: stats.totalLikes,
+        createdAt: libraryInfo.createdAt || Date.now(),
+        updatedAt: Date.now()
+    };
+    
+    localStorage.setItem(STORAGE_KEYS.ALL_LIBRARIES, JSON.stringify(registry));
+}
+
+/**
+ * 모든 도서관 등록부 가져오기
+ */
+function getAllLibrariesRegistry() {
+    const data = localStorage.getItem(STORAGE_KEYS.ALL_LIBRARIES);
+    return data ? JSON.parse(data) : {};
+}
+
+/**
+ * 도서관 이름으로 검색
+ */
+function searchLibrariesByName(query) {
+    const registry = getAllLibrariesRegistry();
+    const lowerQuery = query.toLowerCase();
+    
+    return Object.values(registry).filter(lib => 
+        lib.name.toLowerCase().includes(lowerQuery) ||
+        (lib.description && lib.description.toLowerCase().includes(lowerQuery))
+    );
+}
+
+/**
+ * 도서관 ID로 도서관 정보 가져오기
+ */
+function getLibraryById(libraryId) {
+    const registry = getAllLibrariesRegistry();
+    return registry[libraryId] || null;
 }
 
 // ===================================

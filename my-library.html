@@ -323,14 +323,22 @@
             const libraryInfo = getLibraryInfo();
             const libraryId = getLibraryId();
             
+            // 도서관 이름이 변경되었으면 등록부 업데이트
+            registerLibraryInRegistry(libraryInfo.name);
+            
             // 공유 가능한 URL 생성
             const baseUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
             const shareUrl = `${baseUrl}index.html?library=${libraryId}`;
             
             // 현재 도서관 데이터를 공유용으로 저장
             const books = getAllBooks();
+            const stats = getStats();
             const sharedData = {
-                libraryInfo,
+                libraryInfo: {
+                    ...libraryInfo,
+                    bookCount: stats.totalBooks,
+                    totalLikes: stats.totalLikes
+                },
                 books,
                 createdAt: Date.now()
             };

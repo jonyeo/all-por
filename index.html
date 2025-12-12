@@ -173,10 +173,16 @@
         <h2 class="section-title">🔎 다른 도서관 찾기</h2>
         <p class="section-subtitle">친구의 도서관 이름을 검색해보세요</p>
         <div class="library-search-box">
-            <input type="text" id="librarySearchInput" placeholder="도서관 이름 입력...">
-            <button onclick="searchLibrary()">검색</button>
+            <input type="text" id="librarySearchInput" placeholder="도서관 이름 입력..." onkeyup="if(event.key==='Enter') searchLibrary()">
+            <button onclick="searchLibrary()">🔍 검색</button>
         </div>
         <div id="librarySearchResults"></div>
+        <div style="margin-top:1.5rem;padding:1rem;background:var(--bg-card);border-radius:12px;text-align:center;">
+            <p style="color:var(--text-secondary);font-size:0.9rem;margin:0;">
+                💡 <strong>팁:</strong> 도서관 이름의 일부만 입력해도 검색됩니다.<br>
+                예: "철학" 입력 시 "철학 도서관", "철학자의 서재" 등이 검색됩니다.
+            </p>
+        </div>
     </section>
 
     <!-- 푸터 -->

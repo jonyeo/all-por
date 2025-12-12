@@ -25,29 +25,57 @@ function checkSharedLibrary() {
 
 // 공유된 도서관 로드
 function loadSharedLibrary(libraryId) {
-    // 로컬 스토리지에서 공유된 도서관 데이터 찾기
-    // 실제로는 Firebase나 서버에서 가져와야 하지만, 현재는 로컬에서 시뮬레이션
+    // 도서관 등록부에서 정보 가져오기
+    const libraryInfo = getLibraryById(libraryId);
+    
+    if (!libraryInfo) {
+        showToast('도서관을 찾을 수 없습니다', 'error');
+        setTimeout(() => window.location.href = 'index.html', 2000);
+        return;
+    }
+    
+    // 공유된 도서관 데이터 찾기
     const sharedData = localStorage.getItem(`shared_library_${libraryId}`);
     
     if (sharedData) {
         const data = JSON.parse(sharedData);
         // 공유 모드 표시
-        showSharedLibraryMode(data);
+        showSharedLibraryMode(data, libraryInfo);
     } else {
         // 공유 데이터가 없으면 현재 도서관 표시
-        console.log('공유된 도서관을 찾을 수 없습니다. 현재 도서관을 표시합니다.');
+        showToast('공유된 도서관 데이터를 찾을 수 없습니다', 'error');
+        setTimeout(() => window.location.href = 'index.html', 2000);
     }
 }
 
 // 공유 모드 UI 표시
-function showSharedLibraryMode(data) {
+function showSharedLibraryMode(data, libraryInfo) {
     // 헤더에 공유 모드 표시
     const header = document.querySelector('.main-header');
     if (header) {
         const sharedBadge = document.createElement('div');
-        sharedBadge.style.cssText = 'background:#e74c3c;color:white;padding:0.5rem 1rem;text-align:center;font-size:0.9rem;';
-        sharedBadge.innerHTML = `👁️ 공유된 도서관 모드 | <a href="index.html" style="color:white;text-decoration:underline;">내 도서관으로 돌아가기</a>`;
+        sharedBadge.style.cssText = 'background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);color:white;padding:0.8rem 1rem;text-align:center;font-size:0.95rem;box-shadow:0 2px 10px rgba(0,0,0,0.1);';
+        sharedBadge.innerHTML = `
+            <span style="font-weight:600;">👁️ ${escapeHtml(libraryInfo.name)}의 도서관</span> | 
+            <a href="index.html" style="color:white;text-decoration:underline;margin-left:0.5rem;">내 도서관으로 돌아가기</a>
+        `;
         header.insertAdjacentElement('afterend', sharedBadge);
+    }
+    
+    // 공유된 도서관의 책 데이터로 교체
+    if (data.books && Array.isArray(data.books)) {
+        // 임시로 공유된 도서관의 책들을 표시하기 위해
+        // 로컬 스토리지에 임시 저장 (뒤로가기 시 복원)
+        const originalBooks = getAllBooks();
+        localStorage.setItem('_original_books_backup', JSON.stringify(originalBooks));
+        localStorage.setItem(STORAGE_KEYS.BOOKS, JSON.stringify(data.books));
+        
+        // 페이지 새로고침하여 공유된 도서관의 책 표시
+        if (window.location.pathname.includes('index.html') || window.location.pathname.endsWith('/')) {
+            renderRecentBooks();
+            renderRankingList();
+            updateCategoryCounts();
+        }
     }
 }
 
@@ -302,27 +330,56 @@ function searchLibrary() {
         return;
     }
     
-    // 로컬에서는 자신의 도서관만 검색됨
-    // Firebase 연동 시 다른 사용자의 도서관도 검색 가능
-    const libraryInfo = getLibraryInfo();
+    // 도서관 이름으로 검색
+    const results = searchLibrariesByName(query);
+    const currentLibraryId = getLibraryId();
     
-    if (libraryInfo.name.toLowerCase().includes(query.toLowerCase())) {
+    if (results.length === 0) {
         resultsContainer.innerHTML = `
-            <div class="ranking-item" style="max-width:500px;margin:1rem auto;cursor:pointer;" onclick="window.location.href='my-library.html'">
-                <span style="font-size:2rem;">${libraryInfo.avatar || '📚'}</span>
-                <div class="ranking-info">
-                    <div class="ranking-title">${escapeHtml(libraryInfo.name)}</div>
-                    <div class="ranking-author">내 도서관</div>
-                </div>
+            <div style="text-align:center;padding:2rem;color:var(--text-secondary);">
+                <span style="font-size:3rem;display:block;margin-bottom:1rem;">🔍</span>
+                <p>'${escapeHtml(query)}'에 해당하는 도서관을 찾을 수 없습니다.</p>
+                <p style="font-size:0.9rem;margin-top:0.5rem;">도서관 이름을 정확히 입력해주세요.</p>
             </div>
         `;
-    } else {
-        resultsContainer.innerHTML = `
-            <p style="color:var(--text-secondary);margin-top:1rem;">
-                '${escapeHtml(query)}'에 해당하는 도서관을 찾을 수 없습니다.
-            </p>
-        `;
+        return;
     }
+    
+    // 검색 결과 표시
+    let resultsHtml = '<div style="display:flex;flex-direction:column;gap:1rem;margin-top:1.5rem;">';
+    
+    results.forEach(lib => {
+        const isMyLibrary = lib.id === currentLibraryId;
+        resultsHtml += `
+            <div class="ranking-item" style="cursor:pointer;transition:all 0.3s;" 
+                 onclick="visitLibrary('${lib.id}')"
+                 onmouseover="this.style.transform='translateX(5px)'"
+                 onmouseout="this.style.transform='translateX(0)'">
+                <span style="font-size:2rem;">${lib.avatar || '📚'}</span>
+                <div class="ranking-info" style="flex:1;">
+                    <div class="ranking-title">${escapeHtml(lib.name)} ${isMyLibrary ? '<span style="color:var(--accent-primary);font-size:0.8rem;">(내 도서관)</span>' : ''}</div>
+                    <div class="ranking-author">
+                        ${lib.description || '설명 없음'}
+                    </div>
+                    <div class="ranking-stats" style="margin-top:0.5rem;">
+                        <span>📚 ${lib.bookCount || 0}권</span>
+                        <span>❤️ ${lib.totalLikes || 0}</span>
+                    </div>
+                </div>
+                <button class="btn btn-primary btn-small" onclick="event.stopPropagation();visitLibrary('${lib.id}')">
+                    방문하기 →
+                </button>
+            </div>
+        `;
+    });
+    
+    resultsHtml += '</div>';
+    resultsContainer.innerHTML = resultsHtml;
+}
+
+// 도서관 방문
+function visitLibrary(libraryId) {
+    window.location.href = `index.html?library=${libraryId}`;
 }
 
 // ===================================
