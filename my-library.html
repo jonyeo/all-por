@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>내 도서관 - 나만의 도서관</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700&family=Pretendard:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- QR 코드 라이브러리 -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="main-header">
+        <div class="header-content">
+            <a href="index.html" class="logo">
+                <span class="logo-icon">📚</span>
+                <span class="logo-text">나만의 도서관</span>
+            </a>
+            <nav class="main-nav">
+                <a href="index.html" class="nav-link">홈</a>
+                <a href="explore.html" class="nav-link">둘러보기</a>
+                <a href="my-library.html" class="nav-link active">내 도서관</a>
+                <a href="add-book.html" class="nav-link add-book-btn">+ 책 추가</a>
+            </nav>
+            <div class="header-actions">
+                <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 도서관 헤더 -->
+    <section class="my-library-header">
+        <div class="library-avatar">📚</div>
+        <input type="text" 
+               class="library-name-input" 
+               id="libraryName" 
+               value="나만의 도서관" 
+               onchange="updateLibraryName(this)"
+               placeholder="도서관 이름">
+        <p style="color:var(--text-secondary);margin-top:0.5rem;">도서관 이름을 클릭하여 수정하세요</p>
+        
+        <div class="library-stats">
+            <div class="stat-card">
+                <span class="stat-number">0</span>
+                <span class="stat-label">등록된 책</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number">0</span>
+                <span class="stat-label">총 좋아요</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- 공유 섹션 -->
+    <section class="share-section" id="share">
+        <h2>🔗 도서관 공유하기</h2>
+        <p style="color:var(--text-secondary);margin-bottom:1rem;">
+            QR 코드를 스캔하거나 URL을 공유해보세요
+        </p>
+        
+        <div class="qr-code" id="qrCode" style="display:flex;justify-content:center;margin:1.5rem 0;">
+            <!-- QR 코드가 여기에 생성됩니다 -->
+            <div style="width:200px;height:200px;background:var(--border-color);border-radius:12px;display:flex;align-items:center;justify-content:center;">
+                <span style="color:var(--text-muted);">로딩 중...</span>
+            </div>
+        </div>
+        
+        <div style="display:flex;gap:0.5rem;justify-content:center;margin-bottom:1.5rem;">
+            <button onclick="downloadQRCode()" class="btn btn-secondary btn-small">📥 QR 다운로드</button>
+            <button onclick="shareLibrary()" class="btn btn-secondary btn-small">📤 공유하기</button>
+        </div>
+        
+        <div class="share-url">
+            <input type="text" id="shareUrl" readonly>
+            <button onclick="copyShareUrl()">복사</button>
+        </div>
+        
+        <p class="form-hint" style="margin-top:1rem;">
+            💡 GitHub Pages에 배포하면 고유 URL이 생성됩니다
+        </p>
+    </section>
+
+    <!-- 탭 네비게이션 -->
+    <div class="tab-nav">
+        <button class="tab-btn active" onclick="switchTab('books')">📚 내 책</button>
+        <button class="tab-btn" onclick="switchTab('liked')">❤️ 좋아요</button>
+        <button class="tab-btn" onclick="switchTab('stats')">📊 통계</button>
+    </div>
+
+    <!-- 탭 내용 -->
+    <main style="max-width:1400px;margin:0 auto;">
+        <!-- 내 책 탭 -->
+        <div class="tab-content active" id="tab-books">
+            <div class="section-header" style="padding:0 2rem;">
+                <h2 class="section-title">내가 등록한 책</h2>
+                <a href="add-book.html" class="btn btn-primary btn-small">+ 책 추가</a>
+            </div>
+            <div class="books-grid" id="myBooksGrid" style="padding:2rem;">
+                <!-- JavaScript로 동적 생성 -->
+            </div>
+        </div>
+
+        <!-- 좋아요 탭 -->
+        <div class="tab-content" id="tab-liked">
+            <h2 class="section-title" style="padding:0 2rem;">좋아요한 책</h2>
+            <div class="books-grid" id="likedBooksGrid" style="padding:2rem;">
+                <!-- JavaScript로 동적 생성 -->
+            </div>
+        </div>
+
+        <!-- 통계 탭 -->
+        <div class="tab-content" id="tab-stats">
+            <div style="padding:2rem;max-width:800px;margin:0 auto;">
+                <h2 class="section-title">📊 도서관 통계</h2>
+                
+                <div class="form-card" style="margin-top:2rem;">
+                    <h3>분류별 책 수</h3>
+                    <div id="categoryStats" style="margin-top:1.5rem;">
+                        <!-- JavaScript로 동적 생성 -->
+                    </div>
+                </div>
+
+                <div class="form-card" style="margin-top:2rem;">
+                    <h3>평점 분포</h3>
+                    <div id="ratingStats" style="margin-top:1.5rem;">
+                        <!-- JavaScript로 동적 생성 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 푸터 -->
+    <footer class="main-footer">
+        <div class="footer-bottom">
+            <p>© 2024 나만의 도서관. GitHub Pages로 운영됩니다.</p>
+        </div>
+    </footer>
+
+    <script src="js/storage.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        // 탭 전환
+        function switchTab(tabName) {
+            // 버튼 활성화
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // 탭 내용 표시
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            
+            // 탭별 내용 로드
+            if (tabName === 'liked') {
+                renderLikedBooks();
+            } else if (tabName === 'stats') {
+                renderStats();
+            }
+        }
+
+        // 좋아요한 책 렌더링
+        function renderLikedBooks() {
+            const container = document.getElementById('likedBooksGrid');
+            const likedIds = getLikedBooks();
+            const books = likedIds.map(id => getBookById(id)).filter(book => book);
+            
+            if (books.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <span class="empty-icon">💔</span>
+                        <p>좋아요한 책이 없습니다</p>
+                        <a href="explore.html" class="btn btn-primary">책 둘러보기</a>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = books.map(book => createBookCard(book)).join('');
+        }
+
+        // 통계 렌더링
+        function renderStats() {
+            const stats = getStats();
+            const books = getAllBooks();
+            
+            // 분류별 통계
+            const categoryStatsEl = document.getElementById('categoryStats');
+            let categoryHtml = '';
+            
+            for (let i = 0; i <= 8; i++) {
+                const cat = KDC_CATEGORIES[i];
+                const count = stats.categoryCounts[i] || 0;
+                const percentage = stats.totalBooks > 0 ? (count / stats.totalBooks * 100) : 0;
+                
+                categoryHtml += `
+                    <div style="margin-bottom:1rem;">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:0.3rem;">
+                            <span>${cat.icon} ${cat.name}</span>
+                            <span>${count}권</span>
+                        </div>
+                        <div style="height:8px;background:var(--border-color);border-radius:4px;overflow:hidden;">
+                            <div style="height:100%;width:${percentage}%;background:var(--gradient-accent);border-radius:4px;transition:width 0.5s ease;"></div>
+                        </div>
+                    </div>
+                `;
+            }
+            categoryStatsEl.innerHTML = categoryHtml;
+            
+            // 평점 통계
+            const ratingStatsEl = document.getElementById('ratingStats');
+            const ratingCounts = [0, 0, 0, 0, 0, 0]; // 0~5점
+            
+            books.forEach(book => {
+                const rating = book.rating || 0;
+                ratingCounts[rating]++;
+            });
+            
+            let ratingHtml = '';
+            for (let i = 5; i >= 1; i--) {
+                const count = ratingCounts[i];
+                const percentage = stats.totalBooks > 0 ? (count / stats.totalBooks * 100) : 0;
+                
+                ratingHtml += `
+                    <div style="margin-bottom:1rem;">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:0.3rem;">
+                            <span>${'⭐'.repeat(i)}</span>
+                            <span>${count}권</span>
+                        </div>
+                        <div style="height:8px;background:var(--border-color);border-radius:4px;overflow:hidden;">
+                            <div style="height:100%;width:${percentage}%;background:linear-gradient(90deg, #ffd700, #ffb700);border-radius:4px;transition:width 0.5s ease;"></div>
+                        </div>
+                    </div>
+                `;
+            }
+            ratingStatsEl.innerHTML = ratingHtml;
+        }
+
+        // QR 코드 인스턴스
+        let qrCodeInstance = null;
+        
+        // QR 코드 생성 (페이지 로드 후)
+        window.addEventListener('load', function() {
+            generateLibraryQRCode();
+        });
+        
+        function generateLibraryQRCode() {
+            const qrContainer = document.getElementById('qrCode');
+            const libraryInfo = getLibraryInfo();
+            const shareUrl = window.location.origin + window.location.pathname;
+            
+            // URL 입력란 업데이트
+            document.getElementById('shareUrl').value = shareUrl;
+            
+            if (qrContainer && typeof QRCode !== 'undefined') {
+                // 기존 QR 코드 제거
+                qrContainer.innerHTML = '';
+                
+                // 새 QR 코드 생성
+                qrCodeInstance = new QRCode(qrContainer, {
+                    text: shareUrl,
+                    width: 200,
+                    height: 200,
+                    colorDark: '#2c2c2c',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+                
+                // 스타일 적용
+                setTimeout(() => {
+                    const img = qrContainer.querySelector('img');
+                    const canvas = qrContainer.querySelector('canvas');
+                    if (img) img.style.borderRadius = '12px';
+                    if (canvas) canvas.style.borderRadius = '12px';
+                }, 100);
+            } else {
+                qrContainer.innerHTML = `
+                    <div style="width:200px;height:200px;background:var(--accent-light);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:0.5rem;">
+                        <span style="font-size:3rem;">📱</span>
+                        <span style="color:var(--text-secondary);font-size:0.9rem;">QR 코드</span>
+                    </div>
+                `;
+            }
+        }
+        
+        // QR 코드 다운로드
+        function downloadQRCode() {
+            const qrContainer = document.getElementById('qrCode');
+            const canvas = qrContainer.querySelector('canvas');
+            const img = qrContainer.querySelector('img');
+            
+            if (canvas) {
+                const link = document.createElement('a');
+                link.download = '내_도서관_QR.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                showToast('QR 코드가 다운로드되었습니다!');
+            } else if (img) {
+                // 이미지를 캔버스로 변환 후 다운로드
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = img.width;
+                tempCanvas.height = img.height;
+                const ctx = tempCanvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                
+                const link = document.createElement('a');
+                link.download = '내_도서관_QR.png';
+                link.href = tempCanvas.toDataURL('image/png');
+                link.click();
+                showToast('QR 코드가 다운로드되었습니다!');
+            } else {
+                showToast('QR 코드를 다운로드할 수 없습니다', 'error');
+            }
+        }
+        
+        // 도서관 공유 (Web Share API)
+        async function shareLibrary() {
+            const libraryInfo = getLibraryInfo();
+            const shareUrl = window.location.origin + window.location.pathname;
+            
+            const shareData = {
+                title: libraryInfo.name,
+                text: `📚 ${libraryInfo.name}을(를) 방문해보세요!`,
+                url: shareUrl
+            };
+            
+            try {
+                if (navigator.share) {
+                    await navigator.share(shareData);
+                    showToast('공유되었습니다!');
+                } else {
+                    // Web Share API 미지원 시 클립보드 복사
+                    await navigator.clipboard.writeText(shareUrl);
+                    showToast('URL이 클립보드에 복사되었습니다!');
+                }
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    // 사용자가 취소한 경우가 아니면 클립보드 복사 시도
+                    try {
+                        await navigator.clipboard.writeText(shareUrl);
+                        showToast('URL이 클립보드에 복사되었습니다!');
+                    } catch {
+                        showToast('공유에 실패했습니다', 'error');
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="나만의 디지털 도서관 - 책을 정리하고, 공유하고, 발견하세요. 24시간 열려있는 나만의 서재를 만들어보세요.">
+    <meta name="keywords" content="도서관, 책, 독서, 서재, 북리스트, 디지털 도서관, 책 정리, 독서 기록">
+    <meta name="author" content="나만의 도서관">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://jonyeo.github.io/all-por/">
+    <meta property="og:title" content="📚 나만의 도서관 - 디지털 서재 만들기">
+    <meta property="og:description" content="책을 정리하고, 공유하고, 발견하세요. 24시간 열려있는 나만의 서재를 만들어보세요.">
+    <meta property="og:image" content="https://jonyeo.github.io/all-por/assets/og-image.png">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://jonyeo.github.io/all-por/">
+    <meta property="twitter:title" content="📚 나만의 도서관 - 디지털 서재 만들기">
+    <meta property="twitter:description" content="책을 정리하고, 공유하고, 발견하세요. 24시간 열려있는 나만의 서재를 만들어보세요.">
+    
+    <title>📚 나만의 도서관 - 디지털 서재 만들기</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700&family=Pretendard:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="main-header">
+        <div class="header-content">
+            <a href="index.html" class="logo">
+                <span class="logo-icon">📚</span>
+                <span class="logo-text">나만의 도서관</span>
+            </a>
+            <nav class="main-nav">
+                <a href="index.html" class="nav-link active">홈</a>
+                <a href="explore.html" class="nav-link">둘러보기</a>
+                <a href="my-library.html" class="nav-link">내 도서관</a>
+                <a href="add-book.html" class="nav-link add-book-btn">+ 책 추가</a>
+            </nav>
+            <div class="header-actions">
+                <button class="search-toggle" onclick="toggleSearch()">🔍</button>
+                <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+            </div>
+        </div>
+        <!-- 검색 바 -->
+        <div class="search-bar" id="searchBar">
+            <input type="text" id="searchInput" placeholder="책 제목, 저자, 키워드로 검색..." onkeyup="handleSearch(event)">
+            <button onclick="performSearch()">검색</button>
+        </div>
+    </header>
+
+    <!-- 히어로 섹션 -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1>당신만의 <span class="highlight">디지털 서재</span>를 만들어보세요</h1>
+            <p>책을 정리하고, 기록하고, 세상과 공유하세요.<br>24시간 열려있는 나만의 도서관입니다.</p>
+            <div class="hero-buttons">
+                <a href="add-book.html" class="btn btn-primary">📖 첫 책 추가하기</a>
+                <a href="explore.html" class="btn btn-secondary">🔍 도서관 둘러보기</a>
+            </div>
+        </div>
+        <div class="hero-visual">
+            <div class="floating-books">
+                <div class="book-card-mini" style="--delay: 0s">📕</div>
+                <div class="book-card-mini" style="--delay: 0.5s">📗</div>
+                <div class="book-card-mini" style="--delay: 1s">📘</div>
+                <div class="book-card-mini" style="--delay: 1.5s">📙</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 통계 섹션 -->
+    <section class="stats-section">
+        <div class="stat-card">
+            <span class="stat-number" id="totalBooks">0</span>
+            <span class="stat-label">등록된 책</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-number" id="totalCategories">9</span>
+            <span class="stat-label">분류 카테고리</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-number" id="totalLikes">0</span>
+            <span class="stat-label">총 좋아요</span>
+        </div>
+    </section>
+
+    <!-- 카테고리 섹션 (한국십진분류법) -->
+    <section class="categories-section">
+        <h2 class="section-title">📂 분류별 탐색</h2>
+        <p class="section-subtitle">한국십진분류법(KDC)에 따른 9개 분야</p>
+        <div class="categories-grid">
+            <a href="explore.html?category=0" class="category-card" data-category="0">
+                <span class="category-icon">📚</span>
+                <span class="category-name">총류</span>
+                <span class="category-count" id="cat-0-count">0권</span>
+            </a>
+            <a href="explore.html?category=1" class="category-card" data-category="1">
+                <span class="category-icon">🤔</span>
+                <span class="category-name">철학</span>
+                <span class="category-count" id="cat-1-count">0권</span>
+            </a>
+            <a href="explore.html?category=2" class="category-card" data-category="2">
+                <span class="category-icon">🙏</span>
+                <span class="category-name">종교</span>
+                <span class="category-count" id="cat-2-count">0권</span>
+            </a>
+            <a href="explore.html?category=3" class="category-card" data-category="3">
+                <span class="category-icon">🔬</span>
+                <span class="category-name">자연과학</span>
+                <span class="category-count" id="cat-3-count">0권</span>
+            </a>
+            <a href="explore.html?category=4" class="category-card" data-category="4">
+                <span class="category-icon">⚙️</span>
+                <span class="category-name">기술과학</span>
+                <span class="category-count" id="cat-4-count">0권</span>
+            </a>
+            <a href="explore.html?category=5" class="category-card" data-category="5">
+                <span class="category-icon">🎨</span>
+                <span class="category-name">예술</span>
+                <span class="category-count" id="cat-5-count">0권</span>
+            </a>
+            <a href="explore.html?category=6" class="category-card" data-category="6">
+                <span class="category-icon">💬</span>
+                <span class="category-name">언어</span>
+                <span class="category-count" id="cat-6-count">0권</span>
+            </a>
+            <a href="explore.html?category=7" class="category-card" data-category="7">
+                <span class="category-icon">✍️</span>
+                <span class="category-name">문학</span>
+                <span class="category-count" id="cat-7-count">0권</span>
+            </a>
+            <a href="explore.html?category=8" class="category-card" data-category="8">
+                <span class="category-icon">🏛️</span>
+                <span class="category-name">역사</span>
+                <span class="category-count" id="cat-8-count">0권</span>
+            </a>
+        </div>
+    </section>
+
+    <!-- 최근 추가된 책 -->
+    <section class="recent-books-section">
+        <div class="section-header">
+            <h2 class="section-title">📖 최근 추가된 책</h2>
+            <a href="explore.html" class="view-all">전체보기 →</a>
+        </div>
+        <div class="books-grid" id="recentBooks">
+            <!-- JavaScript로 동적 생성 -->
+            <div class="empty-state" id="emptyState">
+                <span class="empty-icon">📭</span>
+                <p>아직 등록된 책이 없습니다</p>
+                <a href="add-book.html" class="btn btn-primary">첫 책 추가하기</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- 인기 책 (순위) -->
+    <section class="ranking-section">
+        <div class="section-header">
+            <h2 class="section-title">🏆 인기 책 순위</h2>
+            <a href="explore.html?sort=popular" class="view-all">전체보기 →</a>
+        </div>
+        <div class="ranking-list" id="rankingList">
+            <!-- JavaScript로 동적 생성 -->
+        </div>
+    </section>
+
+    <!-- 도서관 검색 섹션 -->
+    <section class="library-search-section">
+        <h2 class="section-title">🔎 다른 도서관 찾기</h2>
+        <p class="section-subtitle">친구의 도서관 이름을 검색해보세요</p>
+        <div class="library-search-box">
+            <input type="text" id="librarySearchInput" placeholder="도서관 이름 입력...">
+            <button onclick="searchLibrary()">검색</button>
+        </div>
+        <div id="librarySearchResults"></div>
+    </section>
+
+    <!-- 푸터 -->
+    <footer class="main-footer">
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>📚 나만의 도서관</h3>
+                <p>책을 사랑하는 모든 이들을 위한<br>디지털 서재 플랫폼</p>
+            </div>
+            <div class="footer-section">
+                <h4>바로가기</h4>
+                <a href="index.html">홈</a>
+                <a href="explore.html">둘러보기</a>
+                <a href="my-library.html">내 도서관</a>
+                <a href="add-book.html">책 추가</a>
+            </div>
+            <div class="footer-section">
+                <h4>도서관 공유</h4>
+                <p>QR 코드로 내 도서관을<br>친구에게 공유해보세요!</p>
+                <a href="my-library.html#share" class="btn btn-small">공유하기</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>© 2024 나만의 도서관. GitHub Pages로 운영됩니다.</p>
+        </div>
+    </footer>
+
+    <!-- 스크립트 -->
+    <script src="js/storage.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
+

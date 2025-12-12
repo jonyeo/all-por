@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>둘러보기 - 나만의 도서관</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700&family=Pretendard:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="main-header">
+        <div class="header-content">
+            <a href="index.html" class="logo">
+                <span class="logo-icon">📚</span>
+                <span class="logo-text">나만의 도서관</span>
+            </a>
+            <nav class="main-nav">
+                <a href="index.html" class="nav-link">홈</a>
+                <a href="explore.html" class="nav-link active">둘러보기</a>
+                <a href="my-library.html" class="nav-link">내 도서관</a>
+                <a href="add-book.html" class="nav-link add-book-btn">+ 책 추가</a>
+            </nav>
+            <div class="header-actions">
+                <button class="search-toggle" onclick="toggleSearch()">🔍</button>
+                <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+            </div>
+        </div>
+        <div class="search-bar" id="searchBar">
+            <input type="text" id="searchInput" placeholder="책 제목, 저자, 키워드로 검색..." onkeyup="handleSearch(event)">
+            <button onclick="performSearch()">검색</button>
+        </div>
+    </header>
+
+    <main style="max-width:1400px;margin:0 auto;padding:2rem;">
+        <!-- 페이지 헤더 -->
+        <div class="section-header">
+            <h1 class="section-title" id="exploreTitle">모든 책</h1>
+            <div style="display:flex;gap:0.5rem;">
+                <select onchange="sortBooks(this.value)" class="form-select" style="padding:0.6rem 1rem;min-width:auto;">
+                    <option value="recent">최신순</option>
+                    <option value="popular">인기순</option>
+                    <option value="rating">평점순</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- 카테고리 필터 -->
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:2rem;">
+            <button class="category-filter" data-category="all" onclick="window.location.href='explore.html'" 
+                    style="padding:0.5rem 1rem;border-radius:20px;border:2px solid var(--border-color);background:var(--bg-card);cursor:pointer;transition:all 0.3s;">
+                전체
+            </button>
+            <button class="category-filter" data-category="0" onclick="filterByCategory(0)"
+                    style="padding:0.5rem 1rem;border-radius:20px;border:2px solid var(--border-color);background:var(--bg-card);cursor:pointer;transition:all 0.3s;">
+                📚 총류
+            </button>
+            <button class="category-filter" data-category="1" onclick="filterByCategory(1)"
+                    style="padding:0.5rem 1rem;border-radius:20px;border:2px solid var(--border-color);background:var(--bg-card);cursor:pointer;transition:all 0.3s;">
+                🤔 철학
+            </button>
+            <button class="category-filter" data-category="2" onclick="filterByCategory(2)"
+                    style="padding:0.5rem 1rem;border-radius:20px;border:2px solid var(--border-color);background:var(--bg-card);cursor:pointer;transition:all 0.3s;">
+                🙏 종교
+            </button>
+            <button class="category-filter" data-category="3" onclick="filterByCategory(3)"
+                    style="padding:0.5rem 1rem;border-radius:20px;border:2px solid var(--border-color);background:var(--bg-card);cursor:pointer;transition:all 0.3s;">
+                🔬 자연과학
+            </button>
+            <button class="category-filter" data-category="4" onclick="filterByCategory(4)"
+                    style="padding:0.5rem 1rem;border-radius:20px;border:2px solid var(--border-color);background:var(--bg-card);cursor:pointer;transition:all 0.3s;">
+                ⚙️ 기술과학
+            </button>
+            <button class="category-filter" data-category="5" onclick="filterByCategory(5)"
+                    style="padding:0.5rem 1rem;border-radius:20px;border:2px solid var(--border-color);background:var(--bg-card);cursor:pointer;transition:all 0.3s;">
+                🎨 예술
+            </button>
+            <button class="category-filter" data-category="6" onclick="filterByCategory(6)"
+                    style="padding:0.5rem 1rem;border-radius:20px;border:2px solid var(--border-color);background:var(--bg-card);cursor:pointer;transition:all 0.3s;">
+                💬 언어
+            </button>
+            <button class="category-filter" data-category="7" onclick="filterByCategory(7)"
+                    style="padding:0.5rem 1rem;border-radius:20px;border:2px solid var(--border-color);background:var(--bg-card);cursor:pointer;transition:all 0.3s;">
+                ✍️ 문학
+            </button>
+            <button class="category-filter" data-category="8" onclick="filterByCategory(8)"
+                    style="padding:0.5rem 1rem;border-radius:20px;border:2px solid var(--border-color);background:var(--bg-card);cursor:pointer;transition:all 0.3s;">
+                🏛️ 역사
+            </button>
+        </div>
+
+        <!-- 책 그리드 -->
+        <div class="books-grid" id="exploreGrid">
+            <!-- JavaScript로 동적 생성 -->
+        </div>
+    </main>
+
+    <!-- 푸터 -->
+    <footer class="main-footer">
+        <div class="footer-bottom">
+            <p>© 2024 나만의 도서관. GitHub Pages로 운영됩니다.</p>
+        </div>
+    </footer>
+
+    <script src="js/storage.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        // 현재 URL의 카테고리 파라미터에 따라 필터 버튼 활성화
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const category = urlParams.get('category');
+            
+            document.querySelectorAll('.category-filter').forEach(btn => {
+                btn.style.borderColor = 'var(--border-color)';
+                btn.style.background = 'var(--bg-card)';
+            });
+            
+            if (category !== null) {
+                const activeBtn = document.querySelector(`.category-filter[data-category="${category}"]`);
+                if (activeBtn) {
+                    activeBtn.style.borderColor = 'var(--accent-primary)';
+                    activeBtn.style.background = 'var(--accent-light)';
+                }
+            } else {
+                const allBtn = document.querySelector('.category-filter[data-category="all"]');
+                if (allBtn) {
+                    allBtn.style.borderColor = 'var(--accent-primary)';
+                    allBtn.style.background = 'var(--accent-light)';
+                }
+            }
+            
+            // 정렬 옵션 선택
+            const sort = urlParams.get('sort');
+            if (sort) {
+                const selectEl = document.querySelector('select');
+                if (selectEl) {
+                    selectEl.value = sort;
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+

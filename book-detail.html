@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>책 상세 - 나만의 도서관</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700&family=Pretendard:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="main-header">
+        <div class="header-content">
+            <a href="index.html" class="logo">
+                <span class="logo-icon">📚</span>
+                <span class="logo-text">나만의 도서관</span>
+            </a>
+            <nav class="main-nav">
+                <a href="index.html" class="nav-link">홈</a>
+                <a href="explore.html" class="nav-link">둘러보기</a>
+                <a href="my-library.html" class="nav-link">내 도서관</a>
+                <a href="add-book.html" class="nav-link add-book-btn">+ 책 추가</a>
+            </nav>
+            <div class="header-actions">
+                <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="book-detail-container">
+        <div class="book-detail-grid">
+            <!-- 책 표지 -->
+            <div id="bookCover">
+                <div class="book-cover" style="width:100%;height:400px;border-radius:16px;">📖</div>
+            </div>
+
+            <!-- 책 정보 -->
+            <div class="book-detail-info">
+                <h1 id="bookTitle">책 제목</h1>
+                
+                <div class="book-detail-meta">
+                    <div class="meta-item">
+                        <span>✍️</span>
+                        <span id="bookAuthor">저자</span>
+                    </div>
+                    <div class="meta-item">
+                        <span>🏢</span>
+                        <span id="bookPublisher">출판사</span>
+                    </div>
+                    <div class="meta-item">
+                        <span>📂</span>
+                        <span id="bookCategory">분류</span>
+                    </div>
+                    <div class="meta-item">
+                        <span id="bookRating">⭐⭐⭐⭐⭐</span>
+                    </div>
+                    <div class="meta-item">
+                        <span>📅</span>
+                        <span id="bookDate">등록일</span>
+                    </div>
+                </div>
+
+                <!-- 액션 버튼 -->
+                <div class="book-actions">
+                    <button class="like-btn" id="likeBtn" onclick="handleLike(currentBookId)">
+                        🤍 좋아요 <span id="likeCount">0</span>
+                    </button>
+                    <button class="btn btn-secondary" onclick="editBook(currentBookId)">
+                        ✏️ 수정
+                    </button>
+                    <button class="btn btn-secondary" onclick="deleteBookConfirm(currentBookId)" style="color:#e74c3c;">
+                        🗑️ 삭제
+                    </button>
+                </div>
+
+                <!-- 요약 -->
+                <div class="book-summary">
+                    <h2>📄 책 내용 정리</h2>
+                    <div id="bookSummary">
+                        <p>요약이 없습니다.</p>
+                    </div>
+                </div>
+
+                <!-- 목차 -->
+                <div class="book-toc">
+                    <h2>📑 핵심 목차</h2>
+                    <div id="bookToc">
+                        <p>목차가 없습니다.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 비슷한 책 -->
+        <div class="similar-books">
+            <h2>📚 비슷한 책</h2>
+            <div id="similarBooks">
+                <p style="color:var(--text-muted);">비슷한 책이 없습니다.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- 푸터 -->
+    <footer class="main-footer">
+        <div class="footer-bottom">
+            <p>© 2024 나만의 도서관. GitHub Pages로 운영됩니다.</p>
+        </div>
+    </footer>
+
+    <script src="js/storage.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        // 현재 책 ID
+        let currentBookId = new URLSearchParams(window.location.search).get('id');
+    </script>
+</body>
+</html>
+

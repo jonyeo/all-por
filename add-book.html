@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📖 책 추가하기 - 나만의 도서관</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700&family=Pretendard:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="main-header">
+        <div class="header-content">
+            <a href="index.html" class="logo">
+                <span class="logo-icon">📚</span>
+                <span class="logo-text">나만의 도서관</span>
+            </a>
+            <nav class="main-nav">
+                <a href="index.html" class="nav-link">홈</a>
+                <a href="explore.html" class="nav-link">둘러보기</a>
+                <a href="my-library.html" class="nav-link">내 도서관</a>
+                <a href="add-book.html" class="nav-link active add-book-btn">+ 책 추가</a>
+            </nav>
+            <div class="header-actions">
+                <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 튜토리얼 모달 -->
+    <div class="modal-overlay show" id="tutorialModal">
+        <div class="modal" style="max-width:600px;">
+            <div class="modal-header">
+                <h2>📚 책 추가하기 가이드</h2>
+                <button class="modal-close" onclick="closeTutorial()">✕</button>
+            </div>
+            <div style="padding:1rem 0;">
+                <div style="text-align:center;margin-bottom:2rem;">
+                    <img src="https://image.aladin.co.kr/product/36101/66/cover500/k012936101_1.jpg" 
+                         alt="책 추가 예시" 
+                         style="max-width:300px;border-radius:12px;box-shadow:var(--shadow-medium);"
+                         onerror="this.style.display='none'">
+                </div>
+                <div style="background:var(--accent-light);padding:1.5rem;border-radius:12px;margin-bottom:1.5rem;">
+                    <h3 style="margin-bottom:1rem;font-size:1.2rem;">🔗 빠른 방법: 알라딘에서 자동 가져오기</h3>
+                    <ol style="padding-left:1.5rem;line-height:2;color:var(--text-secondary);">
+                        <li><a href="https://www.aladin.co.kr" target="_blank" style="color:var(--accent-primary);font-weight:600;">알라딘</a>에서 원하는 책 검색</li>
+                        <li>책 상세 페이지로 이동</li>
+                        <li>주소창의 URL 복사 (Ctrl+C)</li>
+                        <li>아래 "알라딘에서 책 정보 가져오기" 섹션에 붙여넣기</li>
+                        <li>"정보 가져오기" 버튼 클릭 → 자동으로 제목, 저자, 출판사, 이미지, 분류가 채워집니다!</li>
+                    </ol>
+                </div>
+                <div style="background:var(--bg-primary);padding:1.5rem;border-radius:12px;">
+                    <h3 style="margin-bottom:1rem;font-size:1.2rem;">✍️ 수동 입력 방법</h3>
+                    <p style="color:var(--text-secondary);line-height:1.8;">
+                        크롤링이 안 될 경우, 아래 폼에 직접 입력하세요.<br>
+                        이미지는 URL로도 입력 가능합니다 (책 표지 우클릭 → 이미지 주소 복사).
+                    </p>
+                </div>
+            </div>
+            <div style="display:flex;gap:1rem;margin-top:1.5rem;">
+                <button onclick="closeTutorial()" class="btn btn-primary" style="flex:1;">시작하기</button>
+                <button onclick="closeTutorial(true)" class="btn btn-secondary" style="flex:1;">다시 보지 않기</button>
+            </div>
+        </div>
+    </div>
+
+    <main class="page-container">
+        <h1 class="page-title">📖 새 책 추가하기</h1>
+        <p class="page-subtitle">도서관에 새로운 책을 추가해보세요</p>
+
+        <!-- 크롤링 섹션 -->
+        <div class="crawl-section">
+            <h3>🔗 알라딘에서 책 정보 가져오기</h3>
+            
+            <!-- 사용 방법 안내 -->
+            <div style="background:var(--bg-card);border-radius:12px;padding:1rem;margin-bottom:1.5rem;">
+                <p style="font-weight:600;margin-bottom:0.5rem;">📌 사용 방법:</p>
+                <ol style="margin:0;padding-left:1.2rem;color:var(--text-secondary);font-size:0.9rem;line-height:1.8;">
+                    <li><a href="https://www.aladin.co.kr" target="_blank" style="color:var(--accent-primary);">알라딘</a>에서 원하는 책 검색</li>
+                    <li>책 상세 페이지로 이동</li>
+                    <li>주소창의 URL을 복사 (Ctrl+C)</li>
+                    <li>아래 입력창에 붙여넣기 (Ctrl+V)</li>
+                    <li>"정보 가져오기" 버튼 클릭</li>
+                </ol>
+            </div>
+            
+            <div class="crawl-input-group">
+                <input type="text" id="crawlUrl" class="form-input" placeholder="예: https://www.aladin.co.kr/shop/wproduct.aspx?ItemId=361016676">
+                <button type="button" class="btn btn-primary" onclick="crawlBookInfo()">🔍 정보 가져오기</button>
+            </div>
+            
+            <div id="crawlStatus" style="margin-top:1rem;text-align:center;display:none;">
+                <div class="spinner" style="margin:0 auto;"></div>
+                <p style="margin-top:0.5rem;color:var(--text-secondary);">책 정보를 가져오는 중...</p>
+            </div>
+            
+            <div style="margin-top:1rem;padding:1rem;background:var(--bg-card);border-radius:8px;border-left:3px solid var(--accent-primary);">
+                <p style="font-size:0.85rem;color:var(--text-secondary);margin:0;">
+                    ⚠️ <strong>크롤링이 안 될 경우:</strong> 알라딘 사이트가 크롤링을 차단할 수 있습니다.<br>
+                    이 경우 아래 폼에 직접 입력해주세요. 이미지는 URL로도 입력 가능합니다.
+                </p>
+            </div>
+        </div>
+
+        <!-- 책 정보 폼 -->
+        <form class="form-card" onsubmit="saveBook(event)">
+            <!-- 기본 정보 -->
+            <h3 style="margin-bottom:1.5rem;">📝 기본 정보</h3>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">
+                        제목 <span class="required">*</span>
+                    </label>
+                    <input type="text" name="title" id="bookTitle" class="form-input" placeholder="책 제목" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">
+                        저자 <span class="required">*</span>
+                    </label>
+                    <input type="text" name="author" id="bookAuthor" class="form-input" placeholder="저자명" required>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">출판사</label>
+                    <input type="text" name="publisher" id="bookPublisher" class="form-input" placeholder="출판사">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">
+                        분류 <span class="required">*</span>
+                    </label>
+                    <select name="category" class="form-select" required>
+                        <option value="">분류 선택</option>
+                        <option value="0">📚 총류</option>
+                        <option value="1">🤔 철학</option>
+                        <option value="2">🙏 종교</option>
+                        <option value="3">🔬 자연과학</option>
+                        <option value="4">⚙️ 기술과학</option>
+                        <option value="5">🎨 예술</option>
+                        <option value="6">💬 언어</option>
+                        <option value="7">✍️ 문학</option>
+                        <option value="8">🏛️ 역사</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 표지 이미지 -->
+            <div class="form-group">
+                <label class="form-label">책 표지</label>
+                <div class="image-upload-area" id="imagePreview" onclick="document.getElementById('imageInput').click()">
+                    <div class="upload-icon">📷</div>
+                    <p>클릭하여 이미지 업로드</p>
+                    <p class="form-hint">또는 아래에서 URL 직접 입력</p>
+                </div>
+                <input type="file" id="imageInput" accept="image/*" style="display:none" onchange="handleImageUpload(this)">
+                <input type="hidden" id="imageData" name="imageData">
+                
+                <!-- 이미지 URL 직접 입력 -->
+                <div style="margin-top:0.8rem;display:flex;gap:0.5rem;">
+                    <input type="text" id="imageUrlInput" class="form-input" placeholder="이미지 URL 직접 입력 (https://...)" style="flex:1;">
+                    <button type="button" class="btn btn-secondary" onclick="loadImageFromUrl()" style="white-space:nowrap;">URL 적용</button>
+                </div>
+                <p class="form-hint">💡 교보문고/알라딘에서 책 이미지 우클릭 → "이미지 주소 복사" 후 붙여넣기</p>
+            </div>
+
+            <!-- 평점 -->
+            <div class="form-group">
+                <label class="form-label">내 평점</label>
+                <div class="star-rating" id="starRating">
+                    <span class="star" data-rating="1" onclick="setRating(1)">☆</span>
+                    <span class="star" data-rating="2" onclick="setRating(2)">☆</span>
+                    <span class="star" data-rating="3" onclick="setRating(3)">☆</span>
+                    <span class="star" data-rating="4" onclick="setRating(4)">☆</span>
+                    <span class="star" data-rating="5" onclick="setRating(5)">☆</span>
+                </div>
+                <input type="hidden" name="rating" id="ratingInput" value="0">
+            </div>
+
+            <!-- 요약 -->
+            <div class="form-group">
+                <label class="form-label">📄 책 내용 정리 / 요약</label>
+                <textarea name="summary" class="form-textarea" placeholder="이 책의 핵심 내용이나 느낀점을 정리해보세요..."></textarea>
+            </div>
+
+            <!-- 목차 -->
+            <div class="form-group">
+                <label class="form-label">📑 핵심 목차</label>
+                <div class="toc-input-container" id="tocContainer">
+                    <div class="toc-item">
+                        <input type="text" name="toc[]" placeholder="1장. 목차 제목">
+                        <button type="button" onclick="removeTocItem(this)">✕</button>
+                    </div>
+                    <button type="button" class="add-toc-btn" onclick="addTocItem()">+ 목차 추가</button>
+                </div>
+            </div>
+
+            <!-- 제출 버튼 -->
+            <div style="display:flex;gap:1rem;margin-top:2rem;">
+                <button type="submit" class="btn btn-primary" style="flex:1;">
+                    📚 책 추가하기
+                </button>
+                <a href="index.html" class="btn btn-secondary">취소</a>
+            </div>
+        </form>
+    </main>
+
+    <!-- 푸터 -->
+    <footer class="main-footer">
+        <div class="footer-bottom">
+            <p>© 2024 나만의 도서관. GitHub Pages로 운영됩니다.</p>
+        </div>
+    </footer>
+
+    <script src="js/storage.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        // 튜토리얼 모달 관리
+        function closeTutorial(dontShowAgain = false) {
+            const modal = document.getElementById('tutorialModal');
+            if (dontShowAgain) {
+                localStorage.setItem('bookAddTutorialShown', 'true');
+            }
+            modal.classList.remove('show');
+            setTimeout(() => modal.style.display = 'none', 300);
+        }
+        
+        // 페이지 로드 시 튜토리얼 표시 여부 확인
+        window.addEventListener('load', function() {
+            const tutorialShown = localStorage.getItem('bookAddTutorialShown');
+            if (tutorialShown === 'true') {
+                document.getElementById('tutorialModal').style.display = 'none';
+            }
+        });
+    </script>
+    <script>
+        // 별점 설정
+        function setRating(rating) {
+            document.getElementById('ratingInput').value = rating;
+            const stars = document.querySelectorAll('.star');
+            stars.forEach((star, index) => {
+                if (index < rating) {
+                    star.textContent = '★';
+                    star.classList.add('active');
+                } else {
+                    star.textContent = '☆';
+                    star.classList.remove('active');
+                }
+            });
+        }
+
+        // 수정 모드 확인
+        const urlParams = new URLSearchParams(window.location.search);
+        const editId = urlParams.get('edit');
+        
+        if (editId) {
+            const book = getBookById(editId);
+            if (book) {
+                document.querySelector('.page-title').textContent = '📖 책 수정하기';
+                document.getElementById('bookTitle').value = book.title;
+                document.getElementById('bookAuthor').value = book.author;
+                document.getElementById('bookPublisher').value = book.publisher || '';
+                document.querySelector(`select[name="category"] option[value="${book.category}"]`).selected = true;
+                
+                if (book.rating) setRating(book.rating);
+                
+                document.querySelector('textarea[name="summary"]').value = book.summary || '';
+                
+                if (book.image) {
+                    document.getElementById('imagePreview').innerHTML = `<img src="${book.image}">`;
+                    document.getElementById('imagePreview').classList.add('has-image');
+                    document.getElementById('imageData').value = book.image;
+                }
+                
+                // 목차
+                if (book.tableOfContents && book.tableOfContents.length > 0) {
+                    const container = document.getElementById('tocContainer');
+                    container.innerHTML = '';
+                    book.tableOfContents.forEach((toc, i) => {
+                        const item = document.createElement('div');
+                        item.className = 'toc-item';
+                        item.innerHTML = `
+                            <input type="text" name="toc[]" value="${toc}" placeholder="${i+1}장. 목차 제목">
+                            <button type="button" onclick="removeTocItem(this)">✕</button>
+                        `;
+                        container.appendChild(item);
+                    });
+                    const addBtn = document.createElement('button');
+                    addBtn.type = 'button';
+                    addBtn.className = 'add-toc-btn';
+                    addBtn.onclick = addTocItem;
+                    addBtn.textContent = '+ 목차 추가';
+                    container.appendChild(addBtn);
+                }
+                
+                // 폼 제출 수정
+                document.querySelector('form').onsubmit = function(e) {
+                    e.preventDefault();
+                    
+                    const form = e.target;
+                    const formData = new FormData(form);
+                    
+                    const tocInputs = form.querySelectorAll('input[name="toc[]"]');
+                    const tableOfContents = Array.from(tocInputs)
+                        .map(input => input.value.trim())
+                        .filter(value => value !== '');
+                    
+                    const updates = {
+                        title: formData.get('title'),
+                        author: formData.get('author'),
+                        publisher: formData.get('publisher') || '',
+                        image: document.getElementById('imageData')?.value || '',
+                        category: parseInt(formData.get('category')),
+                        rating: parseInt(formData.get('rating')) || 0,
+                        summary: formData.get('summary') || '',
+                        tableOfContents
+                    };
+                    
+                    updateBook(editId, updates);
+                    showToast('책이 수정되었습니다!');
+                    
+                    setTimeout(() => {
+                        window.location.href = `book-detail.html?id=${editId}`;
+                    }, 1000);
+                };
+                
+                document.querySelector('button[type="submit"]').textContent = '📚 책 수정하기';
+            }
+        }
+    </script>
+</body>
+</html>
+
