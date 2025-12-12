@@ -39,8 +39,14 @@
                id="libraryName" 
                value="나만의 도서관" 
                onchange="updateLibraryName(this)"
+               onblur="updateLibraryName(this)"
                placeholder="도서관 이름">
-        <p style="color:var(--text-secondary);margin-top:0.5rem;">도서관 이름을 클릭하여 수정하세요</p>
+        <p style="color:var(--text-secondary);margin-top:0.5rem;">
+            도서관 이름을 입력하세요. 다른 사람이 이 이름으로 검색할 수 있습니다.
+        </p>
+        <div style="margin-top:0.5rem;padding:0.8rem;background:var(--accent-light);border-radius:8px;font-size:0.85rem;color:var(--text-secondary);">
+            💡 <strong>팁:</strong> 독특하고 기억하기 쉬운 이름을 지으면 친구들이 쉽게 찾을 수 있어요!
+        </div>
         
         <div class="library-stats">
             <div class="stat-card">
