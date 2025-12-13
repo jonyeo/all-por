@@ -48,6 +48,30 @@
             💡 <strong>팁:</strong> 독특하고 기억하기 쉬운 이름을 지으면 친구들이 쉽게 찾을 수 있어요!
         </div>
         
+        <!-- 도서관 공개 설정 -->
+        <div style="margin-top:1.5rem;padding:1.5rem;background:var(--bg-card);border-radius:16px;border:2px solid var(--border-color);">
+            <h3 style="margin-bottom:1rem;font-size:1.1rem;">🔒 도서관 공개 설정</h3>
+            <select id="libraryVisibility" class="form-select" onchange="updateLibraryVisibility(this.value)">
+                <option value="public">🌐 공개 - 모든 책과 정보 공개</option>
+                <option value="partial">🔓 일부 공개 - 읽고 있는 책만 공개</option>
+                <option value="private">🔒 비공개 - 기본 정보만 공개</option>
+            </select>
+            <div style="margin-top:1rem;font-size:0.85rem;color:var(--text-secondary);line-height:1.6;">
+                <p><strong>🌐 공개:</strong> 모든 책과 정보가 공개됩니다</p>
+                <p><strong>🔓 일부 공개:</strong> 읽고 있는 책(reading/completed)만 공개됩니다</p>
+                <p><strong>🔒 비공개:</strong> 도서관 이름과 기본 통계만 공개됩니다</p>
+            </div>
+            <div style="margin-top:1rem;padding:0.8rem;background:var(--bg-primary);border-radius:8px;font-size:0.85rem;">
+                <strong>기본 책 공개 설정:</strong>
+                <select id="defaultBookVisibility" class="form-select" style="margin-top:0.5rem;" onchange="updateDefaultBookVisibility(this.value)">
+                    <option value="public">공개</option>
+                    <option value="partial">일부 공개</option>
+                    <option value="private">비공개</option>
+                </select>
+                <p style="margin-top:0.5rem;color:var(--text-secondary);">새로 추가하는 책의 기본 공개 설정입니다</p>
+            </div>
+        </div>
+        
         <div class="library-stats">
             <div class="stat-card">
                 <span class="stat-number">0</span>
@@ -74,14 +98,27 @@
             </div>
         </div>
         
-        <div style="display:flex;gap:0.5rem;justify-content:center;margin-bottom:1.5rem;">
+        <div style="display:flex;gap:0.5rem;justify-content:center;margin-bottom:1.5rem;flex-wrap:wrap;">
             <button onclick="downloadQRCode()" class="btn btn-secondary btn-small">📥 QR 다운로드</button>
             <button onclick="shareLibrary()" class="btn btn-secondary btn-small">📤 공유하기</button>
+            <button onclick="exportLibrary()" class="btn btn-primary btn-small">💾 도서관 내보내기</button>
+            <button onclick="document.getElementById('importFile').click()" class="btn btn-primary btn-small">📂 도서관 가져오기</button>
+            <input type="file" id="importFile" accept=".json" style="display:none" onchange="importLibrary(event)">
         </div>
         
         <div class="share-url">
             <input type="text" id="shareUrl" readonly>
             <button onclick="copyShareUrl()">복사</button>
+        </div>
+        
+        <div style="margin-top:1.5rem;padding:1rem;background:var(--accent-light);border-radius:12px;">
+            <h3 style="font-size:1rem;margin-bottom:0.5rem;">📋 공유 방법</h3>
+            <ol style="margin:0;padding-left:1.2rem;color:var(--text-secondary);font-size:0.9rem;line-height:1.8;">
+                <li><strong>도서관 내보내기</strong> 버튼을 클릭하여 JSON 파일 다운로드</li>
+                <li>다운로드한 파일을 다른 사용자에게 전달 (이메일, 메신저 등)</li>
+                <li>다른 사용자가 <strong>도서관 가져오기</strong> 버튼으로 파일 업로드</li>
+                <li>공개 설정에 따라 정보가 자동으로 필터링됩니다</li>
+            </ol>
         </div>
         
         <p class="form-hint" style="margin-top:1rem;">
@@ -173,7 +210,12 @@
         </div>
     </footer>
 
+    <!-- Firebase 설정 (선택사항) -->
+    <script src="firebase-config.js" defer></script>
+    
+    <!-- 스토리지 (Firebase 우선, 없으면 localStorage) -->
     <script src="js/storage.js"></script>
+    <script src="js/firebase-storage.js" defer></script>
     <script src="js/app.js"></script>
     <script>
         // 탭 전환
@@ -337,18 +379,31 @@
             const shareUrl = `${baseUrl}index.html?library=${libraryId}`;
             
             // 현재 도서관 데이터를 공유용으로 저장
-            const books = getAllBooks();
-            const stats = getStats();
-            const sharedData = {
-                libraryInfo: {
-                    ...libraryInfo,
-                    bookCount: stats.totalBooks,
-                    totalLikes: stats.totalLikes
-                },
-                books,
-                createdAt: Date.now()
-            };
-            localStorage.setItem(`shared_library_${libraryId}`, JSON.stringify(sharedData));
+            // Firebase를 사용하는 경우 자동으로 동기화되므로 localStorage는 백업용
+            (async function() {
+                const books = await getAllBooks();
+                const stats = await getStats();
+                const sharedData = {
+                    libraryInfo: {
+                        ...libraryInfo,
+                        visibility: libraryInfo.visibility || 'public', // 공개 설정 포함
+                        bookCount: stats.totalBooks,
+                        totalLikes: stats.totalLikes
+                    },
+                    books: books.map(book => ({
+                        ...book,
+                        visibility: book.visibility || 'public' // 각 책의 공개 설정 포함
+                    })),
+                    createdAt: Date.now()
+                };
+                // localStorage 백업 (Firebase가 없을 때 사용)
+                localStorage.setItem(`shared_library_${libraryId}`, JSON.stringify(sharedData));
+                
+                // Firebase에 등록부 업데이트
+                if (typeof registerLibraryInRegistry === 'function') {
+                    await registerLibraryInRegistry(libraryInfo.name);
+                }
+            })();
             
             // URL 입력란 업데이트
             document.getElementById('shareUrl').value = shareUrl;
@@ -445,6 +500,137 @@
                     }
                 }
             }
+        }
+        
+        // 도서관 내보내기 (JSON 파일 다운로드)
+        function exportLibrary() {
+            const libraryInfo = getLibraryInfo();
+            const books = getAllBooks();
+            const stats = getStats();
+            
+            // 공개 설정에 따라 필터링된 데이터 생성
+            const libraryVisibility = libraryInfo.visibility || 'public';
+            let filteredBooks = books;
+            
+            if (libraryVisibility === 'partial') {
+                // 일부 공개: 읽고 있는 책만
+                filteredBooks = books.filter(book => 
+                    book.readingStatus === 'reading' || book.readingStatus === 'completed'
+                );
+            } else if (libraryVisibility === 'private') {
+                // 비공개: 빈 배열
+                filteredBooks = [];
+            }
+            
+            // 각 책의 공개 설정도 적용
+            filteredBooks = filteredBooks.map(book => {
+                const bookVisibility = book.visibility || 'public';
+                if (bookVisibility === 'private') {
+                    // 비공개 책: 기본 정보만
+                    return {
+                        id: book.id,
+                        title: book.title,
+                        author: book.author,
+                        publisher: book.publisher,
+                        image: book.image,
+                        category: book.category,
+                        categoryId: book.categoryId,
+                        visibility: bookVisibility
+                    };
+                } else if (bookVisibility === 'partial') {
+                    // 일부 공개: 요약, 목차, 상세 기록 숨김
+                    return {
+                        ...book,
+                        summary: '',
+                        tableOfContents: [],
+                        readingStartDate: null,
+                        readingEndDate: null,
+                        pages: null
+                    };
+                }
+                return book;
+            });
+            
+            const exportData = {
+                version: '1.0',
+                libraryInfo: {
+                    name: libraryInfo.name,
+                    description: libraryInfo.description || '',
+                    avatar: libraryInfo.avatar || '📚',
+                    visibility: libraryVisibility,
+                    bookCount: filteredBooks.length,
+                    totalLikes: stats.totalLikes,
+                    exportedAt: new Date().toISOString()
+                },
+                books: filteredBooks
+            };
+            
+            // JSON 파일로 다운로드
+            const dataStr = JSON.stringify(exportData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${libraryInfo.name}_도서관_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+            
+            showToast('도서관이 내보내졌습니다!');
+        }
+        
+        // 도서관 가져오기 (JSON 파일 업로드)
+        function importLibrary(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            if (!file.name.endsWith('.json')) {
+                showToast('JSON 파일만 업로드 가능합니다', 'error');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importData = JSON.parse(e.target.result);
+                    
+                    if (!importData.libraryInfo || !importData.books) {
+                        showToast('잘못된 파일 형식입니다', 'error');
+                        return;
+                    }
+                    
+                    // 확인 메시지
+                    const confirmMsg = `"${importData.libraryInfo.name}" 도서관을 가져오시겠습니까?\n\n` +
+                                     `책 ${importData.books.length}권이 포함되어 있습니다.\n\n` +
+                                     `⚠️ 현재 도서관 데이터가 덮어씌워질 수 있습니다.`;
+                    
+                    if (!confirm(confirmMsg)) {
+                        return;
+                    }
+                    
+                    // 공유 모드로 표시
+                    const libraryId = `imported_${Date.now()}`;
+                    const sharedData = {
+                        libraryInfo: importData.libraryInfo,
+                        books: importData.books,
+                        createdAt: Date.now()
+                    };
+                    
+                    // 임시로 공유 데이터 저장
+                    localStorage.setItem(`shared_library_${libraryId}`, JSON.stringify(sharedData));
+                    
+                    // 공유 모드로 이동
+                    window.location.href = `index.html?library=${libraryId}`;
+                    
+                } catch (error) {
+                    console.error('파일 읽기 오류:', error);
+                    showToast('파일을 읽을 수 없습니다', 'error');
+                }
+            };
+            
+            reader.readAsText(file);
+            
+            // 파일 입력 초기화
+            event.target.value = '';
         }
     </script>
 </body>

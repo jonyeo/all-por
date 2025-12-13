@@ -10,6 +10,23 @@ document.addEventListener('DOMContentLoaded', () => {
     initTheme();
     checkSharedLibrary();
     initPage();
+    initAuthUI();
+    
+    // Firebase 인증 상태 변경 감지
+    if (window.firebaseEnabled) {
+        window.addEventListener('authStateChanged', (e) => {
+            updateAuthUI(e.detail.user);
+        });
+        
+        // 초기 인증 상태 확인
+        setTimeout(() => {
+            if (window.firebaseAuth && window.firebaseAuth.currentUser) {
+                updateAuthUI(window.firebaseAuth.currentUser);
+            } else {
+                updateAuthUI(null);
+            }
+        }, 1000);
+    }
 });
 
 // 공유된 도서관 확인
@@ -24,9 +41,15 @@ function checkSharedLibrary() {
 }
 
 // 공유된 도서관 로드
-function loadSharedLibrary(libraryId) {
-    // 도서관 등록부에서 정보 가져오기
-    const libraryInfo = getLibraryById(libraryId);
+async function loadSharedLibrary(libraryId) {
+    // Firebase 또는 localStorage에서 도서관 정보 가져오기
+    let libraryInfo = null;
+    
+    if (typeof getLibraryById === 'function') {
+        libraryInfo = await getLibraryById(libraryId);
+    } else {
+        libraryInfo = getLibraryById(libraryId);
+    }
     
     if (!libraryInfo) {
         showToast('도서관을 찾을 수 없습니다', 'error');
@@ -34,13 +57,24 @@ function loadSharedLibrary(libraryId) {
         return;
     }
     
-    // 공유된 도서관 데이터 찾기
-    const sharedData = localStorage.getItem(`shared_library_${libraryId}`);
+    // 공유된 도서관 데이터 찾기 (Firebase 우선)
+    let sharedData = null;
+    
+    if (typeof getSharedLibraryData === 'function') {
+        sharedData = await getSharedLibraryData(libraryId);
+    }
+    
+    // Firebase에서 못 찾으면 localStorage 확인
+    if (!sharedData) {
+        const localData = localStorage.getItem(`shared_library_${libraryId}`);
+        if (localData) {
+            sharedData = JSON.parse(localData);
+        }
+    }
     
     if (sharedData) {
-        const data = JSON.parse(sharedData);
         // 공유 모드 표시
-        showSharedLibraryMode(data, libraryInfo);
+        showSharedLibraryMode(sharedData, libraryInfo);
     } else {
         // 공유 데이터가 없으면 현재 도서관 표시
         showToast('공유된 도서관 데이터를 찾을 수 없습니다', 'error');
@@ -62,19 +96,75 @@ function showSharedLibraryMode(data, libraryInfo) {
         header.insertAdjacentElement('afterend', sharedBadge);
     }
     
+    // 공개 설정에 따라 책 필터링
+    const libraryVisibility = data.libraryInfo?.visibility || 'public';
+    let filteredBooks = data.books || [];
+    
+    if (libraryVisibility === 'partial') {
+        // 일부 공개: 읽고 있는 책만
+        filteredBooks = filteredBooks.filter(book => 
+            book.readingStatus === 'reading' || book.readingStatus === 'completed'
+        );
+    } else if (libraryVisibility === 'private') {
+        // 비공개: 빈 배열 (책 목록 숨김)
+        filteredBooks = [];
+    }
+    
+    // 각 책의 공개 설정도 적용
+    filteredBooks = filteredBooks.map(book => {
+        const bookVisibility = book.visibility || 'public';
+        if (bookVisibility === 'private') {
+            // 비공개 책: 기본 정보만 유지
+            return {
+                ...book,
+                rating: 0,
+                summary: '',
+                tableOfContents: [],
+                readingStatus: null,
+                readingStartDate: null,
+                readingEndDate: null
+            };
+        } else if (bookVisibility === 'partial') {
+            // 일부 공개: 요약, 목차, 상세 독서 기록 숨김
+            return {
+                ...book,
+                summary: '',
+                tableOfContents: [],
+                readingStartDate: null,
+                readingEndDate: null,
+                pages: null
+            };
+        }
+        return book;
+    });
+    
     // 공유된 도서관의 책 데이터로 교체
-    if (data.books && Array.isArray(data.books)) {
+    if (filteredBooks.length > 0 || libraryVisibility !== 'private') {
         // 임시로 공유된 도서관의 책들을 표시하기 위해
         // 로컬 스토리지에 임시 저장 (뒤로가기 시 복원)
         const originalBooks = getAllBooks();
         localStorage.setItem('_original_books_backup', JSON.stringify(originalBooks));
-        localStorage.setItem(STORAGE_KEYS.BOOKS, JSON.stringify(data.books));
+        localStorage.setItem(STORAGE_KEYS.BOOKS, JSON.stringify(filteredBooks));
         
         // 페이지 새로고침하여 공유된 도서관의 책 표시
         if (window.location.pathname.includes('index.html') || window.location.pathname.endsWith('/')) {
             renderRecentBooks();
             renderRankingList();
             updateCategoryCounts();
+        }
+    } else {
+        // 비공개 도서관
+        const container = document.getElementById('recentBooks');
+        if (container) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <span class="empty-icon">🔒</span>
+                    <p>이 도서관은 비공개입니다</p>
+                    <p style="font-size:0.9rem;color:var(--text-secondary);margin-top:0.5rem;">
+                        기본 정보만 공개됩니다
+                    </p>
+                </div>
+            `;
         }
     }
 }
@@ -220,7 +310,21 @@ function renderRecentBooks() {
     const container = document.getElementById('recentBooks');
     if (!container) return;
     
-    const books = getRecentBooks(8);
+    // 공유 모드인 경우 공유된 도서관 데이터 사용
+    const urlParams = new URLSearchParams(window.location.search);
+    const libraryId = urlParams.get('library');
+    let books = [];
+    
+    if (libraryId) {
+        const sharedData = localStorage.getItem(`shared_library_${libraryId}`);
+        if (sharedData) {
+            const data = JSON.parse(sharedData);
+            books = data.books.slice(0, 8);
+        }
+    } else {
+        books = getRecentBooks(8);
+    }
+    
     const emptyState = document.getElementById('emptyState');
     
     if (books.length === 0) {
@@ -234,25 +338,40 @@ function renderRecentBooks() {
 }
 
 function createBookCard(book) {
-    const category = KDC_CATEGORIES[book.category];
+    // 알라딘 카테고리 사용 (호환성을 위해 categoryId도 확인)
+    const categoryName = book.category || (book.categoryId !== undefined ? KDC_CATEGORIES[book.categoryId]?.name : '기타');
+    const categoryIcon = book.categoryId !== undefined ? KDC_CATEGORIES[book.categoryId]?.icon : '📖';
     const isLiked = isBookLiked(book.id);
+    
+    // 공개 설정 확인
+    const urlParams = new URLSearchParams(window.location.search);
+    const isSharedMode = urlParams.get('library') !== null;
+    const libraryId = urlParams.get('library');
+    const currentLibraryId = getLibraryId();
+    const isMyBook = !isSharedMode || libraryId === currentLibraryId;
+    
+    const visibility = book.visibility || 'public';
+    const showRating = isMyBook || visibility === 'public';
+    const showLikes = isMyBook || visibility === 'public';
     
     return `
         <div class="book-card" onclick="goToBookDetail('${book.id}')">
             <div class="book-cover">
                 ${book.image 
                     ? `<img src="${book.image}" alt="${book.title}">`
-                    : `<span>${category?.icon || '📖'}</span>`
+                    : `<span>${categoryIcon}</span>`
                 }
+                ${!isMyBook && visibility !== 'public' ? `<div style="position:absolute;top:0.5rem;right:0.5rem;background:rgba(0,0,0,0.7);color:white;padding:0.3rem 0.6rem;border-radius:6px;font-size:0.75rem;">${visibility === 'private' ? '🔒' : '🔓'}</div>` : ''}
             </div>
             <div class="book-info">
                 <h3 class="book-title">${escapeHtml(book.title)}</h3>
                 <p class="book-author">${escapeHtml(book.author)}</p>
                 <div class="book-meta">
-                    <span class="book-category">${category?.name || '기타'}</span>
-                    <span class="book-likes">
+                    <span class="book-category">${escapeHtml(categoryName)}</span>
+                    ${showLikes ? `<span class="book-likes">
                         ${isLiked ? '❤️' : '🤍'} ${book.likes || 0}
-                    </span>
+                    </span>` : ''}
+                    ${showRating && book.rating > 0 ? `<span style="font-size:0.85rem;">⭐ ${book.rating}</span>` : ''}
                 </div>
             </div>
         </div>
@@ -314,7 +433,14 @@ function createRankingItem(book, rank) {
 // ===================================
 
 function goToBookDetail(bookId) {
-    window.location.href = `book-detail.html?id=${bookId}`;
+    // 공유 모드일 때 library 파라미터 유지
+    const urlParams = new URLSearchParams(window.location.search);
+    const libraryId = urlParams.get('library');
+    if (libraryId) {
+        window.location.href = `book-detail.html?id=${bookId}&library=${libraryId}`;
+    } else {
+        window.location.href = `book-detail.html?id=${bookId}`;
+    }
 }
 
 // ===================================
@@ -715,23 +841,53 @@ async function crawlBookInfo() {
                 publisher = publisherEl.textContent.trim();
             }
             
-            // 카테고리 추출 - 브레드크럼 또는 카테고리 링크에서
-            const categoryEl = doc.querySelector('.Ere_prod_side_list li a') ||
-                              doc.querySelector('a[href*="CID="]') ||
-                              doc.querySelector('.path a:nth-child(2)') ||
-                              doc.querySelector('meta[property="og:description"]');
-            
+            // 카테고리 추출 - 알라딘 브레드크럼에서
+            // 알라딘 페이지 구조: .Ere_prod_side_list 또는 .path 또는 브레드크럼
             let categoryText = '';
-            if (categoryEl) {
-                categoryText = categoryEl.textContent?.trim() || categoryEl.getAttribute('content') || '';
+            
+            // 방법 1: 브레드크럼에서 카테고리 찾기
+            const breadcrumbLinks = doc.querySelectorAll('.path a, .Ere_prod_side_list a, a[href*="CID="]');
+            for (const link of breadcrumbLinks) {
+                const href = link.getAttribute('href') || '';
+                const text = link.textContent?.trim() || '';
+                // CID 파라미터가 있는 링크 또는 카테고리 텍스트 찾기
+                if (href.includes('CID=') || (text && !text.includes('홈') && !text.includes('알라딘'))) {
+                    // 카테고리 텍스트 추출 (예: "소설/시/희곡", "경제경영" 등)
+                    if (text && text.length > 0 && text.length < 50) {
+                        categoryText = text;
+                        break;
+                    }
+                }
             }
             
-            // 알라딘 카테고리 → KDC 분류 매핑
-            category = mapAladinCategoryToKDC(categoryText);
+            // 방법 2: 메타 태그에서 카테고리 찾기
+            if (!categoryText) {
+                const metaCategory = doc.querySelector('meta[property="product:category"]') ||
+                                   doc.querySelector('meta[name="category"]');
+                if (metaCategory) {
+                    categoryText = metaCategory.getAttribute('content') || '';
+                }
+            }
+            
+            // 방법 3: 페이지 제목이나 설명에서 추출
+            if (!categoryText) {
+                const pageTitle = doc.querySelector('title')?.textContent || '';
+                // 알라딘 페이지 제목 형식: "책제목 - 알라딘" 또는 "카테고리 > 책제목"
+                if (pageTitle.includes('>')) {
+                    const parts = pageTitle.split('>');
+                    if (parts.length > 1) {
+                        categoryText = parts[parts.length - 2].trim();
+                    }
+                }
+            }
+            
+            // 알라딘 카테고리를 그대로 저장 (KDC 매핑은 호환성을 위해 유지)
+            const aladinCategory = categoryText || '기타';
+            category = mapAladinCategoryToKDC(categoryText); // 호환성을 위한 ID
         }
         
         // 디버그 로그
-        console.log('크롤링 결과:', { title, author, publisher, imageUrl, category });
+        console.log('크롤링 결과:', { title, author, publisher, imageUrl, category, aladinCategory: aladinCategory || '기타' });
         
         // 폼에 값 채우기
         if (title) {
@@ -749,14 +905,36 @@ async function crawlBookInfo() {
             document.getElementById('imageData').value = imageUrl;
         }
         
-        // 카테고리 자동 선택
-        if (category >= 0 && category <= 8) {
-            const categorySelect = document.querySelector('select[name="category"]');
-            if (categorySelect) {
-                categorySelect.value = category.toString();
-                // 선택 표시 효과
-                categorySelect.style.borderColor = 'var(--accent-primary)';
-                setTimeout(() => categorySelect.style.borderColor = '', 2000);
+        // 알라딘 카테고리 저장 및 선택
+        if (aladinCategory && aladinCategory !== '기타') {
+            // 알라딘 카테고리를 텍스트 입력 필드에 저장
+            const categoryInput = document.getElementById('bookCategory');
+            if (categoryInput) {
+                categoryInput.value = aladinCategory;
+            }
+            
+            // KDC 카테고리 ID도 저장 (호환성)
+            const categoryIdInput = document.getElementById('bookCategoryId');
+            if (categoryIdInput) {
+                categoryIdInput.value = category >= 0 ? category : 0;
+            } else {
+                // 숨겨진 입력 필드 생성
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.id = 'bookCategoryId';
+                hiddenInput.name = 'categoryId';
+                hiddenInput.value = category >= 0 ? category : 0;
+                document.querySelector('form').appendChild(hiddenInput);
+            }
+        } else {
+            // 카테고리가 없으면 기본값 설정
+            const categoryInput = document.getElementById('bookCategory');
+            if (categoryInput && !categoryInput.value) {
+                categoryInput.value = '기타';
+            }
+            const categoryIdInput = document.getElementById('bookCategoryId');
+            if (categoryIdInput) {
+                categoryIdInput.value = category >= 0 ? category : 0;
             }
         }
         
@@ -841,12 +1019,17 @@ function saveBook(event) {
     const readingEndDate = formData.get('readingEndDate') ? new Date(formData.get('readingEndDate')).getTime() : null;
     const pages = parseInt(formData.get('pages')) || 0;
     
+    // 알라딘 카테고리 가져오기
+    const aladinCategory = formData.get('category') || '기타';
+    const categoryId = parseInt(formData.get('categoryId')) || 0;
+    
     const bookData = {
         title: formData.get('title'),
         author: formData.get('author'),
         publisher: formData.get('publisher') || '',
         image: document.getElementById('imageData')?.value || '',
-        category: parseInt(formData.get('category')),
+        category: aladinCategory, // 알라딘 카테고리 이름
+        categoryId: categoryId, // KDC ID (호환성)
         rating: parseInt(formData.get('rating')) || 0,
         summary: formData.get('summary') || '',
         tableOfContents,
@@ -854,7 +1037,8 @@ function saveBook(event) {
         readingStatus,
         readingStartDate,
         readingEndDate,
-        pages
+        pages,
+        visibility: formData.get('visibility') || 'public'
     };
     
     // 유효성 검사
@@ -880,16 +1064,42 @@ function saveBook(event) {
 function initBookDetailPage() {
     const urlParams = new URLSearchParams(window.location.search);
     const bookId = urlParams.get('id');
+    const libraryId = urlParams.get('library');
     
     if (!bookId) {
-        window.location.href = 'index.html';
+        // 공유 모드일 때 library 파라미터 유지
+        if (libraryId) {
+            window.location.href = `index.html?library=${libraryId}`;
+        } else {
+            window.location.href = 'index.html';
+        }
         return;
     }
     
-    const book = getBookById(bookId);
+    // 공유 모드인 경우 공유된 도서관 데이터에서 책 찾기
+    let book = null;
+    if (libraryId) {
+        const sharedData = localStorage.getItem(`shared_library_${libraryId}`);
+        if (sharedData) {
+            const data = JSON.parse(sharedData);
+            book = data.books.find(b => b.id === bookId);
+        }
+    }
+    
+    // 공유 모드가 아니거나 공유 데이터에서 찾지 못한 경우 일반 데이터에서 찾기
+    if (!book) {
+        book = getBookById(bookId);
+    }
+    
     if (!book) {
         showToast('책을 찾을 수 없습니다', 'error');
-        setTimeout(() => window.location.href = 'index.html', 1000);
+        setTimeout(() => {
+            if (libraryId) {
+                window.location.href = `index.html?library=${libraryId}`;
+            } else {
+                window.location.href = 'index.html';
+            }
+        }, 1000);
         return;
     }
     
@@ -898,8 +1108,22 @@ function initBookDetailPage() {
 }
 
 function renderBookDetail(book) {
-    const category = KDC_CATEGORIES[book.category];
+    // 알라딘 카테고리 사용
+    const categoryName = book.category || (book.categoryId !== undefined ? KDC_CATEGORIES[book.categoryId]?.name : '기타');
+    const categoryIcon = book.categoryId !== undefined ? KDC_CATEGORIES[book.categoryId]?.icon : '📖';
     const isLiked = isBookLiked(book.id);
+    
+    // 공개 설정 확인 (공유 모드인지 확인)
+    const urlParams = new URLSearchParams(window.location.search);
+    const isSharedMode = urlParams.get('library') !== null;
+    const libraryId = urlParams.get('library');
+    const currentLibraryId = getLibraryId();
+    const isMyBook = !isSharedMode || libraryId === currentLibraryId;
+    
+    // 공개 설정에 따라 정보 표시 여부 결정
+    const visibility = book.visibility || 'public';
+    const showFullInfo = isMyBook || visibility === 'public';
+    const showPartialInfo = isMyBook || visibility === 'public' || visibility === 'partial';
     
     // 제목
     document.getElementById('bookTitle').textContent = book.title;
@@ -910,52 +1134,48 @@ function renderBookDetail(book) {
     if (book.image) {
         coverEl.innerHTML = `<img src="${book.image}" alt="${book.title}" class="book-detail-cover">`;
     } else {
-        coverEl.innerHTML = `<div class="book-cover" style="width:100%;height:400px;border-radius:16px;">${category?.icon || '📖'}</div>`;
+        coverEl.innerHTML = `<div class="book-cover" style="width:100%;height:400px;border-radius:16px;">${categoryIcon}</div>`;
     }
     
     // 메타 정보
     document.getElementById('bookAuthor').textContent = book.author;
     document.getElementById('bookPublisher').textContent = book.publisher || '-';
-    document.getElementById('bookCategory').textContent = category?.name || '기타';
-    document.getElementById('bookRating').textContent = '⭐'.repeat(book.rating || 0);
+    document.getElementById('bookCategory').textContent = categoryName;
+    
+    // 평점 (비공개면 숨김)
+    if (showFullInfo) {
+        document.getElementById('bookRating').textContent = '⭐'.repeat(book.rating || 0);
+    } else {
+        document.getElementById('bookRating').textContent = '🔒 비공개';
+    }
+    
     document.getElementById('bookDate').textContent = formatDate(book.createdAt);
     
     // 좋아요 버튼
     const likeBtn = document.getElementById('likeBtn');
-    likeBtn.innerHTML = `${isLiked ? '❤️' : '🤍'} 좋아요 <span id="likeCount">${book.likes || 0}</span>`;
-    if (isLiked) likeBtn.classList.add('liked');
+    if (showFullInfo) {
+        likeBtn.innerHTML = `${isLiked ? '❤️' : '🤍'} 좋아요 <span id="likeCount">${book.likes || 0}</span>`;
+        if (isLiked) likeBtn.classList.add('liked');
+    } else {
+        likeBtn.style.display = 'none';
+    }
     
-    // 요약 (마크다운 렌더링)
+    // 요약 (공개 설정에 따라)
     const summaryEl = document.getElementById('bookSummary');
-    if (book.summary) {
+    if (showFullInfo && book.summary) {
         summaryEl.innerHTML = `<div style="line-height:1.8;">${renderMarkdown(book.summary)}</div>`;
+    } else if (showPartialInfo && book.summary) {
+        summaryEl.innerHTML = `<div style="padding:2rem;text-align:center;color:var(--text-muted);">
+            <span style="font-size:2rem;">🔒</span>
+            <p style="margin-top:0.5rem;">이 책의 요약은 비공개입니다</p>
+        </div>`;
     } else {
         summaryEl.innerHTML = `<p style="color:var(--text-muted);">요약이 없습니다.</p>`;
     }
     
-    // 독서 기록 표시
-    if (book.readingStatus || book.readingStartDate || book.readingEndDate || book.pages) {
-        const readingInfo = document.createElement('div');
-        readingInfo.className = 'book-summary';
-        readingInfo.style.marginTop = '1rem';
-        readingInfo.innerHTML = `
-            <h2>📖 독서 기록</h2>
-            <div style="display:flex;gap:2rem;flex-wrap:wrap;margin-top:1rem;">
-                ${book.readingStatus ? `<div><strong>상태:</strong> ${
-                    book.readingStatus === 'completed' ? '✅ 읽음 완료' : 
-                    book.readingStatus === 'reading' ? '📖 읽는 중' : '📚 아직 안 읽음'
-                }</div>` : ''}
-                ${book.readingStartDate ? `<div><strong>시작일:</strong> ${formatDate(book.readingStartDate)}</div>` : ''}
-                ${book.readingEndDate ? `<div><strong>완독일:</strong> ${formatDate(book.readingEndDate)}</div>` : ''}
-                ${book.pages ? `<div><strong>페이지:</strong> ${book.pages}페이지</div>` : ''}
-            </div>
-        `;
-        document.querySelector('.book-detail-info').appendChild(readingInfo);
-    }
-    
-    // 목차
+    // 목차 (공개 설정에 따라)
     const tocEl = document.getElementById('bookToc');
-    if (book.tableOfContents && book.tableOfContents.length > 0) {
+    if (showFullInfo && book.tableOfContents && book.tableOfContents.length > 0) {
         tocEl.innerHTML = `
             <ul class="toc-list">
                 ${book.tableOfContents.map((item, i) => `
@@ -966,8 +1186,54 @@ function renderBookDetail(book) {
                 `).join('')}
             </ul>
         `;
+    } else if (book.tableOfContents && book.tableOfContents.length > 0) {
+        tocEl.innerHTML = `
+            <div style="padding:2rem;text-align:center;color:var(--text-muted);">
+                <span style="font-size:2rem;">🔒</span>
+                <p style="margin-top:0.5rem;">이 책의 목차는 비공개입니다</p>
+            </div>
+        `;
     } else {
         tocEl.innerHTML = `<p style="color:var(--text-muted);">목차가 없습니다.</p>`;
+    }
+    
+    // 독서 기록 표시 (공개 설정에 따라)
+    if (showPartialInfo && (book.readingStatus || book.readingStartDate || book.readingEndDate || book.pages)) {
+        const readingInfo = document.createElement('div');
+        readingInfo.className = 'book-summary';
+        readingInfo.style.marginTop = '1rem';
+        
+        // 일부 공개 모드에서는 읽기 상태만 표시
+        if (showFullInfo) {
+            readingInfo.innerHTML = `
+                <h2>📖 독서 기록</h2>
+                <div style="display:flex;gap:2rem;flex-wrap:wrap;margin-top:1rem;">
+                    ${book.readingStatus ? `<div><strong>상태:</strong> ${
+                        book.readingStatus === 'completed' ? '✅ 읽음 완료' : 
+                        book.readingStatus === 'reading' ? '📖 읽는 중' : '📚 아직 안 읽음'
+                    }</div>` : ''}
+                    ${book.readingStartDate ? `<div><strong>시작일:</strong> ${formatDate(book.readingStartDate)}</div>` : ''}
+                    ${book.readingEndDate ? `<div><strong>완독일:</strong> ${formatDate(book.readingEndDate)}</div>` : ''}
+                    ${book.pages ? `<div><strong>페이지:</strong> ${book.pages}페이지</div>` : ''}
+                </div>
+            `;
+        } else {
+            // 일부 공개: 읽기 상태만
+            readingInfo.innerHTML = `
+                <h2>📖 독서 기록</h2>
+                <div style="display:flex;gap:2rem;flex-wrap:wrap;margin-top:1rem;">
+                    ${book.readingStatus ? `<div><strong>상태:</strong> ${
+                        book.readingStatus === 'completed' ? '✅ 읽음 완료' : 
+                        book.readingStatus === 'reading' ? '📖 읽는 중' : '📚 아직 안 읽음'
+                    }</div>` : ''}
+                    <div style="color:var(--text-muted);font-size:0.9rem;">🔒 상세 기록은 비공개입니다</div>
+                </div>
+            `;
+        }
+        const detailInfo = document.querySelector('.book-detail-info');
+        if (detailInfo) {
+            detailInfo.appendChild(readingInfo);
+        }
     }
 }
 
@@ -992,7 +1258,26 @@ function renderSimilarBooks(bookId) {
     const container = document.getElementById('similarBooks');
     if (!container) return;
     
-    const books = getSimilarBooks(bookId, 4);
+    // 공유 모드인 경우 공유된 도서관 데이터에서 비슷한 책 찾기
+    const urlParams = new URLSearchParams(window.location.search);
+    const libraryId = urlParams.get('library');
+    let books = [];
+    
+    if (libraryId) {
+        const sharedData = localStorage.getItem(`shared_library_${libraryId}`);
+        if (sharedData) {
+            const data = JSON.parse(sharedData);
+            const currentBook = data.books.find(b => b.id === bookId);
+            if (currentBook) {
+                // 같은 카테고리나 관련 책 찾기
+                books = data.books
+                    .filter(b => b.id !== bookId && (b.category === currentBook.category || b.relatedBooks?.includes(bookId)))
+                    .slice(0, 4);
+            }
+        }
+    } else {
+        books = getSimilarBooks(bookId, 4);
+    }
     
     if (books.length === 0) {
         container.innerHTML = `<p style="color:var(--text-muted);">비슷한 책이 없습니다.</p>`;
@@ -1064,6 +1349,18 @@ function updateLibraryName(input) {
     saveLibraryInfo({ name: newName });
     registerLibraryInRegistry(newName);
     showToast('도서관 이름이 저장되었습니다!');
+}
+
+// 도서관 공개 설정 업데이트
+function updateLibraryVisibility(visibility) {
+    saveLibraryInfo({ visibility });
+    showToast('도서관 공개 설정이 저장되었습니다!');
+}
+
+// 기본 책 공개 설정 업데이트
+function updateDefaultBookVisibility(visibility) {
+    saveLibraryInfo({ defaultBookVisibility: visibility });
+    showToast('기본 책 공개 설정이 저장되었습니다!');
 }
 
 function renderMyBooks() {
@@ -1254,5 +1551,125 @@ function renderMarkdown(text) {
     html = html.replace(/\n/g, '<br>');
     
     return html;
+}
+
+// ===================================
+// 인증 UI 관리
+// ===================================
+
+// 인증 UI 초기화
+function initAuthUI() {
+    // Firebase가 활성화되지 않았으면 UI 숨기기
+    if (!window.firebaseEnabled) {
+        const authStatus = document.getElementById('authStatus');
+        if (authStatus) {
+            authStatus.style.display = 'none';
+        }
+        return;
+    }
+}
+
+// 인증 상태에 따라 UI 업데이트
+async function updateAuthUI(user) {
+    const userInfo = document.getElementById('userInfo');
+    const loginBtn = document.getElementById('loginBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    
+    if (!userInfo || !loginBtn || !logoutBtn) return;
+    
+    if (user) {
+        // 로그인된 상태
+        const displayName = user.displayName || user.email || '사용자';
+        const photoURL = user.photoURL || '';
+        
+        userInfo.innerHTML = `
+            ${photoURL ? `<img src="${photoURL}" alt="${displayName}">` : '<span>👤</span>'}
+            <span>${escapeHtml(displayName)}</span>
+        `;
+        userInfo.style.display = 'flex';
+        loginBtn.style.display = 'none';
+        logoutBtn.style.display = 'block';
+        
+        // 사용자 정보를 localStorage에 저장 (선택사항)
+        localStorage.setItem('user_displayName', displayName);
+        if (photoURL) {
+            localStorage.setItem('user_photoURL', photoURL);
+        }
+    } else {
+        // 로그인되지 않은 상태
+        userInfo.style.display = 'none';
+        loginBtn.style.display = 'block';
+        logoutBtn.style.display = 'none';
+        
+        // localStorage에서 사용자 정보 제거
+        localStorage.removeItem('user_displayName');
+        localStorage.removeItem('user_photoURL');
+    }
+}
+
+// Google 로그인 처리
+async function handleGoogleLogin() {
+    if (!window.firebaseEnabled) {
+        showToast('Firebase가 초기화되지 않았습니다.', 'error');
+        return;
+    }
+    
+    const loginBtn = document.getElementById('loginBtn');
+    if (loginBtn) {
+        loginBtn.disabled = true;
+        loginBtn.textContent = '로그인 중...';
+    }
+    
+    try {
+        if (typeof signInWithGoogle === 'function') {
+            const user = await signInWithGoogle();
+            if (user) {
+                showToast(`환영합니다, ${user.displayName || user.email}님!`, 'success');
+                updateAuthUI(user);
+            }
+        } else {
+            showToast('로그인 함수를 사용할 수 없습니다.', 'error');
+        }
+    } catch (error) {
+        console.error('로그인 오류:', error);
+        showToast('로그인에 실패했습니다.', 'error');
+    } finally {
+        if (loginBtn) {
+            loginBtn.disabled = false;
+            loginBtn.textContent = '🔐 Google 로그인';
+        }
+    }
+}
+
+// 로그아웃 처리
+async function handleLogout() {
+    if (!window.firebaseEnabled) {
+        showToast('Firebase가 초기화되지 않았습니다.', 'error');
+        return;
+    }
+    
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.disabled = true;
+        logoutBtn.textContent = '로그아웃 중...';
+    }
+    
+    try {
+        if (typeof signOut === 'function') {
+            await signOut();
+            showToast('로그아웃되었습니다.', 'success');
+            updateAuthUI(null);
+        } else {
+            showToast('로그아웃 함수를 사용할 수 없습니다.', 'error');
+        }
+    } catch (error) {
+        console.error('로그아웃 오류:', error);
+        showToast('로그아웃에 실패했습니다.', 'error');
+    } finally {
+        if (logoutBtn) {
+            logoutBtn.disabled = false;
+            logoutBtn.textContent = '로그아웃';
+        }
+    }
 }
 

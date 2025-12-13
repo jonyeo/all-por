@@ -135,20 +135,11 @@
                 
                 <div class="form-group">
                     <label class="form-label">
-                        분류 <span class="required">*</span>
+                        분류 (알라딘 기준) <span class="required">*</span>
                     </label>
-                    <select name="category" class="form-select" required>
-                        <option value="">분류 선택</option>
-                        <option value="0">📚 총류</option>
-                        <option value="1">🤔 철학</option>
-                        <option value="2">🙏 종교</option>
-                        <option value="3">🔬 자연과학</option>
-                        <option value="4">⚙️ 기술과학</option>
-                        <option value="5">🎨 예술</option>
-                        <option value="6">💬 언어</option>
-                        <option value="7">✍️ 문학</option>
-                        <option value="8">🏛️ 역사</option>
-                    </select>
+                    <input type="text" name="category" id="bookCategory" class="form-input" placeholder="알라딘에서 자동으로 가져옵니다 (예: 소설/시/희곡, 경제경영)" value="" required>
+                    <input type="hidden" name="categoryId" id="bookCategoryId" value="">
+                    <p class="form-hint">💡 크롤링 시 자동으로 입력됩니다. 수동으로 입력하거나 수정할 수 있습니다.</p>
                 </div>
             </div>
 
@@ -242,6 +233,23 @@
                 </div>
             </div>
 
+            <!-- 공개 설정 -->
+            <div class="form-group">
+                <label class="form-label">🔒 공개 설정</label>
+                <div style="background:var(--bg-primary);padding:1rem;border-radius:12px;margin-top:0.5rem;">
+                    <select name="visibility" class="form-select" id="bookVisibility">
+                        <option value="public">🌐 공개 - 모든 정보 공개</option>
+                        <option value="partial">🔓 일부 공개 - 기본 정보 + 읽기 상태만</option>
+                        <option value="private">🔒 비공개 - 기본 정보만 (제목, 저자, 출판사, 이미지, 분류)</option>
+                    </select>
+                    <div style="margin-top:0.8rem;font-size:0.85rem;color:var(--text-secondary);line-height:1.6;">
+                        <p><strong>🌐 공개:</strong> 제목, 저자, 출판사, 이미지, 분류, 평점, 요약, 목차, 독서 기록 모두 공개</p>
+                        <p><strong>🔓 일부 공개:</strong> 기본 정보 + 읽기 상태만 공개 (요약, 목차, 독서 기록 숨김)</p>
+                        <p><strong>🔒 비공개:</strong> 제목, 저자, 출판사, 이미지, 분류만 공개 (평점, 요약, 목차, 독서 기록 숨김)</p>
+                    </div>
+                </div>
+            </div>
+
             <!-- 제출 버튼 -->
             <div style="display:flex;gap:1rem;margin-top:2rem;">
                 <button type="submit" class="btn btn-primary" style="flex:1;">
@@ -259,7 +267,12 @@
         </div>
     </footer>
 
+    <!-- Firebase 설정 (선택사항) -->
+    <script src="firebase-config.js" defer></script>
+    
+    <!-- 스토리지 (Firebase 우선, 없으면 localStorage) -->
     <script src="js/storage.js"></script>
+    <script src="js/firebase-storage.js" defer></script>
     <script src="js/app.js"></script>
     <script>
         // 튜토리얼 모달 관리
@@ -352,11 +365,22 @@
                 document.getElementById('bookTitle').value = book.title;
                 document.getElementById('bookAuthor').value = book.author;
                 document.getElementById('bookPublisher').value = book.publisher || '';
-                document.querySelector(`select[name="category"] option[value="${book.category}"]`).selected = true;
+                // 알라딘 카테고리 설정
+                const categoryInput = document.getElementById('bookCategory');
+                if (categoryInput) {
+                    categoryInput.value = book.category || '';
+                }
+                if (book.categoryId !== undefined) {
+                    const categoryIdInput = document.getElementById('bookCategoryId');
+                    if (categoryIdInput) {
+                        categoryIdInput.value = book.categoryId;
+                    }
+                }
                 
                 if (book.rating) setRating(book.rating);
                 
-                document.querySelector('textarea[name="summary"]').value = book.summary || '';
+                document.getElementById('summaryTextarea').value = book.summary || '';
+                document.getElementById('bookVisibility').value = book.visibility || 'public';
                 
                 if (book.image) {
                     document.getElementById('imagePreview').innerHTML = `<img src="${book.image}">`;

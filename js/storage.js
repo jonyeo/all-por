@@ -51,7 +51,8 @@ function getShareableLibraryUrl() {
  *   author: string,
  *   publisher: string,
  *   image: string (URL or base64),
- *   category: number (0-8, KDC),
+ *   category: string (알라딘 카테고리 이름), // 알라딘 기준으로 변경
+ *   categoryId: number (0-8, KDC, 호환성 유지),
  *   rating: number (1-5),
  *   summary: string,
  *   tableOfContents: string[],
@@ -61,6 +62,7 @@ function getShareableLibraryUrl() {
  *   readingStartDate: timestamp,
  *   readingEndDate: timestamp,
  *   pages: number,
+ *   visibility: string ('public' | 'private' | 'partial'), // 공개 설정
  *   createdAt: timestamp,
  *   updatedAt: timestamp
  * }
@@ -91,9 +93,11 @@ function getBookById(id) {
  */
 function addBook(bookData) {
     const books = getAllBooks();
+    const libraryInfo = getLibraryInfo();
     const newBook = {
         id: generateId(),
         ...bookData,
+        visibility: bookData.visibility || libraryInfo.defaultBookVisibility || 'public', // 기본값은 도서관 설정 따름
         likes: 0,
         createdAt: Date.now(),
         updatedAt: Date.now()
@@ -246,6 +250,7 @@ function getLibraryInfo() {
         name: '나만의 도서관',
         description: '',
         avatar: '📚',
+        visibility: 'public', // 도서관 공개 설정 ('public' | 'private' | 'partial')
         createdAt: Date.now()
     };
 }
